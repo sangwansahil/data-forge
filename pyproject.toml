@@ -10,7 +10,10 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "data-forge contributors" }]
-dependencies = []
+dependencies = [
+  "google-api-python-client>=2.0",
+  "google-auth>=2.0",
+]
 
 [project.scripts]
 data-forge = "data_forge.cli:main"

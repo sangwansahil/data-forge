@@ -65,6 +65,65 @@ python scripts/validate_text_to_sql_batch.py generation/raw/pilot_001.jsonl \
   --min-score 85
 ```
 
+## Google Drive storage
+
+Generated datasets can live in Google Drive so local and cloud agents share the same source of truth. Configure a service account, share one Drive folder with that service-account email, then set:
+
+```bash
+export DEEPSEEK_API_KEY=...
+export DATA_FORGE_STORAGE=gdrive
+export DATA_FORGE_DRIVE_ROOT_ID=<google-drive-folder-id>
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+```
+
+Cloud agents can use:
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS_JSON='<raw service account json>'
+```
+
+Run a storage-aware generation loop:
+
+```bash
+python3 scripts/run_text_to_sql_loop.py \
+  --config niches/text-to-sql/config.json \
+  --run-id t2sql_pilot_001 \
+  --target-accepted 5000 \
+  --batch-size 100 \
+  --storage gdrive \
+  --drive-root-id "$DATA_FORGE_DRIVE_ROOT_ID"
+```
+
+Build review packets:
+
+```bash
+python3 scripts/build_text_to_sql_review_viewer.py \
+  --run-id t2sql_pilot_001 \
+  --input gdrive://niches/text-to-sql/runs/t2sql_pilot_001/accepted \
+  --out gdrive://niches/text-to-sql/runs/t2sql_pilot_001/review
+```
+
+Apply review decisions, sign off, and export:
+
+```bash
+python3 scripts/apply_text_to_sql_review.py \
+  --run-id t2sql_pilot_001 \
+  --accepted gdrive://niches/text-to-sql/runs/t2sql_pilot_001/accepted \
+  --decisions gdrive://niches/text-to-sql/runs/t2sql_pilot_001/review/decisions \
+  --out gdrive://niches/text-to-sql/runs/t2sql_pilot_001/reviewed
+
+python3 scripts/signoff_text_to_sql_dataset.py \
+  --run-id t2sql_pilot_001 \
+  --reviewed gdrive://niches/text-to-sql/runs/t2sql_pilot_001/reviewed \
+  --reviewer sahil \
+  --out gdrive://niches/text-to-sql/runs/t2sql_pilot_001/manifests/signoff.json
+
+python3 scripts/export_text_to_sql_dataset.py \
+  --input gdrive://niches/text-to-sql/runs/t2sql_pilot_001/reviewed/approved.jsonl \
+  --signoff gdrive://niches/text-to-sql/runs/t2sql_pilot_001/manifests/signoff.json \
+  --out gdrive://niches/text-to-sql/runs/t2sql_pilot_001/datasets/sft_sql_only
+```
+
 ## Row lifecycle
 
 1. Codex writes a batch plan with target skills and anti-leakage constraints.
@@ -74,6 +133,7 @@ python scripts/validate_text_to_sql_batch.py generation/raw/pilot_001.jsonl \
 5. Result gates compare query output to the expected answer.
 6. Programmatic judge scores the row against a rubric.
 7. Rejected rows are archived with reasons.
-8. Accepted rows become fine-tuning candidates.
+8. Accepted rows are reviewed in static HTML packets.
+9. Human-approved rows are signed off and exported for fine-tuning.
 
 The first milestone is not "lots of data." It is a small, brutally filtered dataset whose rows are individually useful.

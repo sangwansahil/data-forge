@@ -42,6 +42,10 @@ def _stable_fingerprint(row: Mapping[str, Any]) -> str:
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:16]
 
 
+def stable_row_fingerprint(row: Mapping[str, Any]) -> str:
+    return _stable_fingerprint(row)
+
+
 def _compare_values(actual: Any, expected: Any, tolerance: float) -> bool:
     if isinstance(actual, (int, float)) and isinstance(expected, (int, float)):
         return abs(float(actual) - float(expected)) <= tolerance

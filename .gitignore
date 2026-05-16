@@ -16,8 +16,14 @@ generation/cache/
 generation/rejected/
 generation/accepted/
 generation/reports/
+generation/review/
+generation/reviewed/
+generation/datasets/
+generation/manifests/
 benchmarks/runs/
+experiments/
 
 # Secrets
 .env
 *.secret
+*service-account*.json
