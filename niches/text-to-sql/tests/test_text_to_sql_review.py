@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
@@ -140,7 +140,7 @@ class TextToSqlReviewTests(unittest.TestCase):
                 storage=storage,
                 run_id="run_1",
                 reviewed_uri="local://reviewed",
-                reviewer="sahil",
+                reviewer="reviewer",
                 out_uri="local://manifests/signoff.json",
             )
             self.assertIn("source_accepted_artifact_ids", signoff)

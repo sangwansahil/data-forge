@@ -1,76 +1,58 @@
 # data-forge
 
-Benchmark-backed dataset generation pipelines for training small specialist models.
+`data-forge` is a framework for building high-quality synthetic dataset pipelines.
 
-`data-forge` is built around one principle: synthetic rows do not enter a training set until they pass executable quality gates. A generator model such as DeepSeek can produce candidates cheaply, but every row is treated as untrusted raw material until deterministic checks and a Codex rubric judge approve it.
+The core idea is simple: generator models are useful for producing candidate data, but the moat is the quality system around them. Rows are generated, executed or validated, judged against explicit rubrics, reviewed by humans when needed, signed off, and only then exported for training.
 
-## First niche
+This repository is designed to be cloned and adapted for new niches. A niche can be SQL, coding, customer-support tools, browser tasks, legal classification, logistics reasoning, or any other domain where data quality can be measured with clear gates.
 
-The first niche pack is `niches/text-to-sql`.
+## What It Provides
 
-Goal: generate a world-class Text-to-SQL fine-tuning dataset for a small open model such as Qwen3.5-4B, then prove the system works on public benchmarks.
+- A reusable storage layer with `local://` and `gdrive://` backends.
+- A pattern for niche-specific generation prompts, validators, reports, review packets, and dataset exports.
+- Static HTML review packets for human approval without running a server.
+- Signoff enforcement before fine-tuning exports.
+- Testable quality gates instead of trust-based synthetic data.
 
-Benchmark ladder:
-
-1. Spider 1.0 dev for fast local iteration.
-2. BIRD dev for real database schemas, external knowledge, and execution accuracy.
-3. Spider 2.0 Lite/Snow for enterprise workflow difficulty.
-4. LiveSQLBench for contamination-resistant public evaluation.
-
-The training data should not copy benchmark rows. The pack generates synthetic schemas and questions that teach the underlying skills: schema linking, joins, aggregation, nested queries, date logic, ambiguity handling, and dialect-aware SQL.
-
-## Repository layout
+## Repository Layout
 
 ```text
 data-forge/
-  niches/
-    text-to-sql/              # Human-facing niche spec, prompts, configs, examples
-  src/data_forge/             # Reusable Python gates and CLI
-  scripts/                    # Batch generation and validation entrypoints
-  tests/                      # Gate tests
+  docs/                 # Framework-level architecture and storage docs
+  niches/               # Domain-specific dataset factories
+  src/data_forge/core/  # Reusable storage, scoring, and JSON helpers
+  src/data_forge/niches # Python implementation for niche packs
+  tests/                # Core and niche tests
 ```
 
-## Quick start
+Niche-specific scripts and docs live inside each niche folder. The current example niche is under `niches/`.
 
-Validate the example row:
+## Quick Start
+
+Clone and run tests:
 
 ```bash
-python scripts/validate_text_to_sql_batch.py niches/text-to-sql/examples/accepted_row.json --min-score 85
+git clone <repo-url>
+cd data-forge
+python3 -m unittest discover -s tests
+for dir in niches/*/tests; do python3 -m unittest discover -s "$dir"; done
 ```
 
-Run tests:
+Install package dependencies:
 
 ```bash
-python -m unittest discover -s tests
+python3 -m pip install -e .
 ```
 
-Generate a raw batch with DeepSeek:
+Use local storage during development:
 
 ```bash
-export DEEPSEEK_API_KEY=...
-python scripts/generate_text_to_sql_batch.py \
-  --config niches/text-to-sql/config.json \
-  --batch-id pilot_001 \
-  --rows 20 \
-  --out generation/raw/pilot_001.jsonl
+export DATA_FORGE_STORAGE=local
 ```
 
-Then validate the generated batch:
+Use Google Drive as the shared data store:
 
 ```bash
-python scripts/validate_text_to_sql_batch.py generation/raw/pilot_001.jsonl \
-  --accepted generation/accepted/pilot_001.jsonl \
-  --rejected generation/rejected/pilot_001.jsonl \
-  --report generation/reports/pilot_001.json \
-  --min-score 85
-```
-
-## Google Drive storage
-
-Generated datasets can live in Google Drive so local and cloud agents share the same source of truth. Configure a service account, share one Drive folder with that service-account email, then set:
-
-```bash
-export DEEPSEEK_API_KEY=...
 export DATA_FORGE_STORAGE=gdrive
 export DATA_FORGE_DRIVE_ROOT_ID=<google-drive-folder-id>
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
@@ -82,58 +64,34 @@ Cloud agents can use:
 export GOOGLE_APPLICATION_CREDENTIALS_JSON='<raw service account json>'
 ```
 
-Run a storage-aware generation loop:
+See `docs/google_drive_storage.md` for Drive setup.
 
-```bash
-python3 scripts/run_text_to_sql_loop.py \
-  --config niches/text-to-sql/config.json \
-  --run-id t2sql_pilot_001 \
-  --target-accepted 5000 \
-  --batch-size 100 \
-  --storage gdrive \
-  --drive-root-id "$DATA_FORGE_DRIVE_ROOT_ID"
-```
+## Core Workflow
 
-Build review packets:
+1. Define a niche pack with a row contract, generation prompts, validators, review UI, and export format.
+2. Generate raw candidate rows with a cheap or high-throughput generator model.
+3. Run deterministic gates and rubric scoring.
+4. Archive rejected rows with reasons.
+5. Build static HTML review packets for accepted rows.
+6. Apply human review decisions.
+7. Create a signoff manifest.
+8. Export only approved rows into training-ready datasets.
+9. Evaluate the trained model against public or private benchmarks.
 
-```bash
-python3 scripts/build_text_to_sql_review_viewer.py \
-  --run-id t2sql_pilot_001 \
-  --input gdrive://niches/text-to-sql/runs/t2sql_pilot_001/accepted \
-  --out gdrive://niches/text-to-sql/runs/t2sql_pilot_001/review
-```
+## Building a New Niche
 
-Apply review decisions, sign off, and export:
+A niche should include:
 
-```bash
-python3 scripts/apply_text_to_sql_review.py \
-  --run-id t2sql_pilot_001 \
-  --accepted gdrive://niches/text-to-sql/runs/t2sql_pilot_001/accepted \
-  --decisions gdrive://niches/text-to-sql/runs/t2sql_pilot_001/review/decisions \
-  --out gdrive://niches/text-to-sql/runs/t2sql_pilot_001/reviewed
+- `README.md`: domain goal, benchmark target, and usage.
+- `config.json`: domains, skills, thresholds, and prompt paths.
+- `prompts/`: orchestrator, generator, and judge instructions.
+- `examples/`: one accepted row and one rejected row.
+- `scripts/`: niche-specific generation, review, signoff, and export commands.
+- Python gates under `src/data_forge/niches/<niche_name>/`.
+- Tests covering acceptance, rejection, review, signoff, and export.
 
-python3 scripts/signoff_text_to_sql_dataset.py \
-  --run-id t2sql_pilot_001 \
-  --reviewed gdrive://niches/text-to-sql/runs/t2sql_pilot_001/reviewed \
-  --reviewer sahil \
-  --out gdrive://niches/text-to-sql/runs/t2sql_pilot_001/manifests/signoff.json
+Keep generated datasets, benchmark downloads, model outputs, adapters, and service-account credentials out of git.
 
-python3 scripts/export_text_to_sql_dataset.py \
-  --input gdrive://niches/text-to-sql/runs/t2sql_pilot_001/reviewed/approved.jsonl \
-  --signoff gdrive://niches/text-to-sql/runs/t2sql_pilot_001/manifests/signoff.json \
-  --out gdrive://niches/text-to-sql/runs/t2sql_pilot_001/datasets/sft_sql_only
-```
+## Design Principle
 
-## Row lifecycle
-
-1. Codex writes a batch plan with target skills and anti-leakage constraints.
-2. DeepSeek generates candidate rows.
-3. Static gates validate schema, metadata, and formatting.
-4. SQL gates execute the gold query in an isolated SQLite database.
-5. Result gates compare query output to the expected answer.
-6. Programmatic judge scores the row against a rubric.
-7. Rejected rows are archived with reasons.
-8. Accepted rows are reviewed in static HTML packets.
-9. Human-approved rows are signed off and exported for fine-tuning.
-
-The first milestone is not "lots of data." It is a small, brutally filtered dataset whose rows are individually useful.
+Fine-tuning is downstream. The asset is the reviewed dataset and the repeatable process that created it.

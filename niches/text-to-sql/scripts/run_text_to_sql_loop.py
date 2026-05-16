@@ -11,7 +11,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
@@ -151,7 +151,7 @@ def main() -> int:
     model = args.model or config.get("generator_model", "deepseek-chat")
     temperature = args.temperature if args.temperature is not None else float(config.get("temperature", 0.7))
     min_score = args.min_score if args.min_score is not None else int(config.get("acceptance_threshold", 85))
-    base_uri = args.base_uri or default_run_base_uri(args.storage, args.run_id)
+    base_uri = args.base_uri or default_run_base_uri(args.storage, args.run_id, niche="text-to-sql")
     storage = get_storage_client(storage=args.storage, drive_root_id=args.drive_root_id, local_root=ROOT)
 
     for folder in ["raw", "accepted", "rejected", "reports", "review", "review/decisions", "reviewed", "datasets", "manifests"]:

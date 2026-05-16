@@ -42,13 +42,16 @@ class StorageTests(unittest.TestCase):
             self.assertEqual([row["id"] for row in read_json_records(storage, "local://rows.jsonl")], ["a", "b"])
 
     def test_uri_join_and_default_run_base(self) -> None:
-        self.assertEqual(join_uri("gdrive://niches/text-to-sql", "runs", "x"), "gdrive://niches/text-to-sql/runs/x")
+        self.assertEqual(join_uri("gdrive://niches/example", "runs", "x"), "gdrive://niches/example/runs/x")
         self.assertEqual(join_uri("local://generation", "runs", "x"), "local://generation/runs/x")
-        self.assertEqual(default_run_base_uri("gdrive", "abc"), "gdrive://niches/text-to-sql/runs/abc")
+        self.assertEqual(
+            default_run_base_uri("gdrive", "abc", niche="example-niche"),
+            "gdrive://niches/example-niche/runs/abc",
+        )
 
     def test_gdrive_path_resolution_does_not_require_api(self) -> None:
         storage = GoogleDriveStorageClient(root_folder_id="root123")
-        self.assertEqual(storage._gdrive_path("gdrive://niches/text-to-sql/runs/x"), "niches/text-to-sql/runs/x")
+        self.assertEqual(storage._gdrive_path("gdrive://niches/example/runs/x"), "niches/example/runs/x")
 
 
 if __name__ == "__main__":

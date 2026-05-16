@@ -62,8 +62,8 @@ def join_uri(base_uri: str, *parts: str) -> str:
     return f"gdrive://{joined}"
 
 
-def default_run_base_uri(storage: str, run_id: str) -> str:
-    suffix = f"niches/text-to-sql/runs/{run_id}"
+def default_run_base_uri(storage: str, run_id: str, *, niche: str) -> str:
+    suffix = f"niches/{niche}/runs/{run_id}"
     if storage == "gdrive":
         return f"gdrive://{suffix}"
     return f"local://generation/{suffix}"

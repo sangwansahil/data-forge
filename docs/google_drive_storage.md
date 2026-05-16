@@ -40,13 +40,13 @@ Never commit service-account JSON files.
 Local:
 
 ```text
-local://generation/niches/text-to-sql/runs/t2sql_pilot_001
+local://generation/niches/{niche}/runs/{run_id}
 ```
 
 Google Drive:
 
 ```text
-gdrive://niches/text-to-sql/runs/t2sql_pilot_001
+gdrive://niches/{niche}/runs/{run_id}
 ```
 
 The Google Drive URI is resolved relative to `DATA_FORGE_DRIVE_ROOT_ID`.
@@ -54,7 +54,7 @@ The Google Drive URI is resolved relative to `DATA_FORGE_DRIVE_ROOT_ID`.
 ## Standard run layout
 
 ```text
-niches/text-to-sql/runs/{run_id}/
+niches/{niche}/runs/{run_id}/
   raw/
   accepted/
   rejected/

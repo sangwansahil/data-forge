@@ -5,7 +5,7 @@ This is the intended first training path once enough rows pass the gates.
 ## Dataset export
 
 ```bash
-python3 scripts/export_text_to_sql_sft.py \
+python3 niches/text-to-sql/scripts/export_text_to_sql_sft.py \
   generation/accepted/pilot_001.jsonl \
   --out generation/accepted/pilot_001_sft.jsonl
 ```

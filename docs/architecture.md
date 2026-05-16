@@ -2,7 +2,7 @@
 
 `data-forge` separates generation from admission.
 
-DeepSeek is allowed to be creative. The gates are not. Candidate rows can be verbose, imperfect, and diverse in the raw archive, but accepted rows must be deterministic, executable, and useful for fine-tuning.
+Generator models are allowed to be creative. The gates are not. Candidate rows can be verbose, imperfect, and diverse in the raw archive, but accepted rows must be deterministic, validated, and useful for training.
 
 ## Core objects
 
@@ -23,7 +23,7 @@ Every niche pack should implement these layers:
 5. **Leakage gate**: row is not copied from benchmark examples.
 6. **Rubric judge**: programmatic score for training value.
 
-For Text-to-SQL, the executable gate uses SQLite first because it is cheap and local. Later packs can add Postgres, DuckDB, Snowflake, or BigQuery adapters.
+Each niche owns its executable or deterministic validation layer. Examples include SQL execution, code tests, API state checks, schema validation, or benchmark-specific scoring.
 
 ## Data policy
 

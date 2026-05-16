@@ -137,7 +137,7 @@ def build_review_html(packet_id: str, run_id: str, rows: list[dict[str, Any]]) -
     h1 {{ margin: 0 0 10px; font-size: 20px; }}
     .controls {{
       display: grid;
-      grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(120px, 1fr)) auto auto;
+      grid-template-columns: minmax(220px, 2fr) repeat(5, minmax(120px, 1fr)) auto auto;
       gap: 8px;
       align-items: center;
     }}
@@ -214,6 +214,7 @@ def build_review_html(packet_id: str, run_id: str, rows: list[dict[str, Any]]) -
       <select id="difficulty"></select>
       <select id="skill"></select>
       <select id="status"></select>
+      <input id="reviewer" placeholder="Reviewer name">
       <button id="bulkApprove" class="approve">Approve visible</button>
       <button id="exportDecisions">Export JSON</button>
     </div>
@@ -235,6 +236,7 @@ def build_review_html(packet_id: str, run_id: str, rows: list[dict[str, Any]]) -
       difficulty: document.getElementById('difficulty'),
       skill: document.getElementById('skill'),
       status: document.getElementById('status'),
+      reviewer: document.getElementById('reviewer'),
       list: document.getElementById('list'),
       detail: document.getElementById('detail'),
       bulkApprove: document.getElementById('bulkApprove'),
@@ -347,7 +349,7 @@ def build_review_html(packet_id: str, run_id: str, rows: list[dict[str, Any]]) -
     function exportDecisions() {{
       const payload = {{
         packet_id: packet.packet_id,
-        reviewer: 'sahil',
+        reviewer: els.reviewer.value || 'reviewer',
         exported_at: new Date().toISOString(),
         decisions: Object.values(decisions)
       }};
@@ -367,6 +369,8 @@ def build_review_html(packet_id: str, run_id: str, rows: list[dict[str, Any]]) -
     fillSelect(els.difficulty, 'All difficulty', uniq(rows.map(row => row.difficulty)));
     fillSelect(els.skill, 'All skills', uniq(rows.flatMap(row => row.skills || [])));
     fillSelect(els.status, 'All status', ['pending', 'approve', 'reject', 'flag']);
+    els.reviewer.value = localStorage.getItem(packet.packet_id + ':reviewer') || '';
+    els.reviewer.addEventListener('input', () => localStorage.setItem(packet.packet_id + ':reviewer', els.reviewer.value));
     Object.values(els).forEach(el => {{
       if (el && ['INPUT', 'SELECT'].includes(el.tagName)) el.addEventListener('input', render);
     }});

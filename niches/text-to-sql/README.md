@@ -41,3 +41,55 @@ The first model target is Qwen3.5-4B or another permissive 2B-4B base/instruct m
 ## First milestone
 
 Produce 5,000 accepted rows with at least an 85/100 programmatic judge score, then fine-tune a 4B model and evaluate it against its base model on Spider dev and BIRD dev using the same prompt/harness.
+
+## Commands
+
+Validate a seed row:
+
+```bash
+python3 niches/text-to-sql/scripts/validate_text_to_sql_batch.py \
+  niches/text-to-sql/examples/accepted_row.json \
+  --min-score 85
+```
+
+Run a Drive-backed generation loop:
+
+```bash
+python3 niches/text-to-sql/scripts/run_text_to_sql_loop.py \
+  --config niches/text-to-sql/config.json \
+  --run-id t2sql_pilot_001 \
+  --target-accepted 5000 \
+  --batch-size 100 \
+  --storage gdrive \
+  --drive-root-id "$DATA_FORGE_DRIVE_ROOT_ID"
+```
+
+Build review packets:
+
+```bash
+python3 niches/text-to-sql/scripts/build_text_to_sql_review_viewer.py \
+  --run-id t2sql_pilot_001 \
+  --input gdrive://niches/text-to-sql/runs/t2sql_pilot_001/accepted \
+  --out gdrive://niches/text-to-sql/runs/t2sql_pilot_001/review
+```
+
+Apply review decisions, sign off, and export:
+
+```bash
+python3 niches/text-to-sql/scripts/apply_text_to_sql_review.py \
+  --run-id t2sql_pilot_001 \
+  --accepted gdrive://niches/text-to-sql/runs/t2sql_pilot_001/accepted \
+  --decisions gdrive://niches/text-to-sql/runs/t2sql_pilot_001/review/decisions \
+  --out gdrive://niches/text-to-sql/runs/t2sql_pilot_001/reviewed
+
+python3 niches/text-to-sql/scripts/signoff_text_to_sql_dataset.py \
+  --run-id t2sql_pilot_001 \
+  --reviewed gdrive://niches/text-to-sql/runs/t2sql_pilot_001/reviewed \
+  --reviewer reviewer \
+  --out gdrive://niches/text-to-sql/runs/t2sql_pilot_001/manifests/signoff.json
+
+python3 niches/text-to-sql/scripts/export_text_to_sql_dataset.py \
+  --input gdrive://niches/text-to-sql/runs/t2sql_pilot_001/reviewed/approved.jsonl \
+  --signoff gdrive://niches/text-to-sql/runs/t2sql_pilot_001/manifests/signoff.json \
+  --out gdrive://niches/text-to-sql/runs/t2sql_pilot_001/datasets/sft_sql_only
+```
