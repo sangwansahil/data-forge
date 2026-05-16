@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "data-forge"
+version = "0.1.0"
+description = "Benchmark-backed synthetic dataset generation pipelines for small specialist models."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "data-forge contributors" }]
+dependencies = []
+
+[project.scripts]
+data-forge = "data_forge.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,23 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Generated data and benchmark artifacts
+generation/raw/
+generation/cache/
+generation/rejected/
+generation/accepted/
+generation/reports/
+benchmarks/runs/
+
+# Secrets
+.env
+*.secret

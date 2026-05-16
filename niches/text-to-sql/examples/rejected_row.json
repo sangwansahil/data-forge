@@ -1,0 +1,37 @@
+{
+  "id": "t2sql_bad_001",
+  "niche": "text-to-sql",
+  "domain": "toy",
+  "difficulty": "easy",
+  "skills": ["filtering"],
+  "instruction": "TODO ask a question about foo.",
+  "schema": {
+    "dialect": "sqlite",
+    "tables": [
+      {
+        "name": "items",
+        "columns": [
+          {"name": "id", "type": "INTEGER"},
+          {"name": "name", "type": "TEXT"}
+        ],
+        "rows": [
+          {"id": 1, "name": "a"}
+        ]
+      }
+    ]
+  },
+  "gold_sql": "SELECT * FROM items",
+  "expected_result": [
+    {"id": 1, "name": "a"}
+  ],
+  "verifier": {
+    "type": "sqlite_exact",
+    "ordered": false,
+    "float_tolerance": 0.000001
+  },
+  "generation": {
+    "generator_model": "manual_seed",
+    "batch_id": "seed",
+    "quality_notes": "Intentionally bad placeholder row."
+  }
+}

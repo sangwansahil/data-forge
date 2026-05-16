@@ -1,0 +1,58 @@
+{
+  "id": "t2sql_example_001",
+  "niche": "text-to-sql",
+  "domain": "logistics",
+  "difficulty": "hard",
+  "skills": ["join", "aggregation", "date_logic", "top_k"],
+  "instruction": "Which two carriers delivered the most completed shipments during March 2026, and how many completed shipments did each carrier deliver?",
+  "schema": {
+    "dialect": "sqlite",
+    "tables": [
+      {
+        "name": "carriers",
+        "columns": [
+          {"name": "carrier_id", "type": "INTEGER"},
+          {"name": "carrier_name", "type": "TEXT"}
+        ],
+        "rows": [
+          {"carrier_id": 1, "carrier_name": "Northline Freight"},
+          {"carrier_id": 2, "carrier_name": "UrbanShip"},
+          {"carrier_id": 3, "carrier_name": "Harbor Express"}
+        ]
+      },
+      {
+        "name": "shipments",
+        "columns": [
+          {"name": "shipment_id", "type": "INTEGER"},
+          {"name": "carrier_id", "type": "INTEGER"},
+          {"name": "status", "type": "TEXT"},
+          {"name": "delivered_at", "type": "DATE"}
+        ],
+        "rows": [
+          {"shipment_id": 101, "carrier_id": 1, "status": "completed", "delivered_at": "2026-03-02"},
+          {"shipment_id": 102, "carrier_id": 1, "status": "completed", "delivered_at": "2026-03-18"},
+          {"shipment_id": 103, "carrier_id": 2, "status": "completed", "delivered_at": "2026-03-04"},
+          {"shipment_id": 104, "carrier_id": 2, "status": "completed", "delivered_at": "2026-03-09"},
+          {"shipment_id": 105, "carrier_id": 2, "status": "completed", "delivered_at": "2026-03-29"},
+          {"shipment_id": 106, "carrier_id": 3, "status": "cancelled", "delivered_at": "2026-03-11"},
+          {"shipment_id": 107, "carrier_id": 3, "status": "completed", "delivered_at": "2026-04-01"}
+        ]
+      }
+    ]
+  },
+  "gold_sql": "SELECT c.carrier_name, COUNT(*) AS completed_shipments FROM shipments s JOIN carriers c ON s.carrier_id = c.carrier_id WHERE s.status = 'completed' AND s.delivered_at >= '2026-03-01' AND s.delivered_at < '2026-04-01' GROUP BY c.carrier_name ORDER BY completed_shipments DESC, c.carrier_name ASC LIMIT 2",
+  "expected_result": [
+    {"carrier_name": "UrbanShip", "completed_shipments": 3},
+    {"carrier_name": "Northline Freight", "completed_shipments": 2}
+  ],
+  "verifier": {
+    "type": "sqlite_exact",
+    "ordered": true,
+    "float_tolerance": 0.000001
+  },
+  "generation": {
+    "generator_model": "manual_seed",
+    "batch_id": "seed",
+    "quality_notes": "Tests date range filtering, join, grouping, ordering, and limit."
+  }
+}

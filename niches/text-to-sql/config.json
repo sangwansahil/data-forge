@@ -1,0 +1,54 @@
+{
+  "niche": "text-to-sql",
+  "generator_model": "deepseek-chat",
+  "temperature": 0.7,
+  "prompt_dir": "niches/text-to-sql/prompts",
+  "acceptance_threshold": 85,
+  "target_benchmarks": [
+    "Spider 1.0 dev",
+    "BIRD dev",
+    "Spider 2.0 Lite",
+    "LiveSQLBench"
+  ],
+  "domains": [
+    "ecommerce",
+    "saas_metrics",
+    "logistics",
+    "warehouse_inventory",
+    "healthcare_admin",
+    "education_admin",
+    "marketplace",
+    "support_operations",
+    "finance_ops",
+    "media_analytics"
+  ],
+  "skill_mix": {
+    "basic_filtering": 0.08,
+    "join": 0.14,
+    "aggregation": 0.14,
+    "date_logic": 0.12,
+    "top_k": 0.08,
+    "conditional_aggregation": 0.1,
+    "subquery": 0.1,
+    "cte": 0.08,
+    "null_handling": 0.06,
+    "schema_linking_trap": 0.06,
+    "set_operation": 0.04
+  },
+  "row_contract": {
+    "dialect": "sqlite",
+    "required_fields": [
+      "id",
+      "niche",
+      "domain",
+      "difficulty",
+      "skills",
+      "instruction",
+      "schema",
+      "gold_sql",
+      "expected_result",
+      "verifier",
+      "generation"
+    ]
+  }
+}
