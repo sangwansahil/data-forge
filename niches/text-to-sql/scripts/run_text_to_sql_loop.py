@@ -75,7 +75,7 @@ def _call_deepseek(
         "response_format": {"type": "json_object"},
         "thinking": {"type": "disabled"},
     }
-    ctx = mp.get_context("fork")
+    ctx = mp.get_context("spawn")
     result_queue = ctx.Queue(maxsize=1)
     process = ctx.Process(target=_deepseek_worker, args=(api_key, payload, timeout_seconds, result_queue))
     process.start()
