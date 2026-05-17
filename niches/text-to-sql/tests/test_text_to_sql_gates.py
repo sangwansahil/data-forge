@@ -38,6 +38,30 @@ class TextToSqlGateTests(unittest.TestCase):
         with self.assertRaises(SqlSafetyError):
             assert_safe_select("DELETE FROM shipments")
 
+    def test_rejects_unknown_qualified_alias_column(self) -> None:
+        row = json.loads((ROOT / "niches/text-to-sql/examples/accepted_row.json").read_text())
+        row["gold_sql"] = "SELECT s.carrier_id, s.missing_col FROM shipments AS s;"
+        row["expected_result"] = []
+        result = evaluate_text_to_sql_row(row)
+        self.assertFalse(result.accepted)
+        self.assertTrue(any("unknown column" in reason for reason in result.reasons), result.to_dict())
+
+    def test_rejects_wrong_sqlite_function_arity(self) -> None:
+        row = json.loads((ROOT / "niches/text-to-sql/examples/accepted_row.json").read_text())
+        row["gold_sql"] = "SELECT COALESCE(carrier_id) AS carrier_id FROM shipments;"
+        row["expected_result"] = [{"carrier_id": 10}, {"carrier_id": 10}, {"carrier_id": 20}]
+        result = evaluate_text_to_sql_row(row)
+        self.assertFalse(result.accepted)
+        self.assertTrue(any("function arity" in reason for reason in result.reasons), result.to_dict())
+
+    def test_rejects_unstable_output_column_alias(self) -> None:
+        row = json.loads((ROOT / "niches/text-to-sql/examples/accepted_row.json").read_text())
+        row["gold_sql"] = "SELECT COUNT(*) FROM shipments;"
+        row["expected_result"] = [{"COUNT(*)": 3}]
+        result = evaluate_text_to_sql_row(row)
+        self.assertFalse(result.accepted)
+        self.assertTrue(any("stable alias" in reason for reason in result.reasons), result.to_dict())
+
 
 if __name__ == "__main__":
     unittest.main()

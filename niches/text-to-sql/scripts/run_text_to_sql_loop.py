@@ -38,6 +38,7 @@ def _call_deepseek(api_key: str, model: str, messages: list[dict[str, str]], tem
         "messages": messages,
         "temperature": temperature,
         "response_format": {"type": "json_object"},
+        "thinking": {"type": "disabled"},
     }
     request = urllib.request.Request(
         "https://api.deepseek.com/chat/completions",
@@ -91,6 +92,10 @@ def _feedback_from_rejections(rejected: list[dict[str, Any]]) -> str:
         return "Previous batch had result mismatches. Use smaller tables and recompute expected_result exactly."
     if "SQL execution failed" in top_reason:
         return "Previous batch had SQL execution failures. Use conservative SQLite syntax and avoid unsupported functions."
+    if "unknown table alias" in top_reason or "unknown column" in top_reason:
+        return "Previous batch had alias or column reference failures. Declare table aliases explicitly and verify every qualified column exists on that aliased table."
+    if "SQLite function" in top_reason or "unsupported SQLite function" in top_reason:
+        return "Previous batch had SQLite function failures. Use only supported SQLite functions and verify function arity before output."
     if "placeholder" in top_reason:
         return "Previous batch had placeholder/meta text. Use realistic row text and concrete business entities."
     return f"Previous batch top rejection reason: {top_reason}. Avoid that failure mode."

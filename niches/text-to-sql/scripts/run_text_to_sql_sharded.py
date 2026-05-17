@@ -57,6 +57,8 @@ def _run_command(args: argparse.Namespace, index: int, shard_count: int, log_pat
     ]
     if args.drive_root_id:
         command.extend(["--drive-root-id", args.drive_root_id])
+    if args.model:
+        command.extend(["--model", args.model])
     if args.force:
         command.append("--force")
     return command
@@ -94,6 +96,7 @@ def main() -> int:
     parser.add_argument("--storage", choices=["local", "gdrive"], default=os.environ.get("DATA_FORGE_STORAGE", "local"))
     parser.add_argument("--base-uri")
     parser.add_argument("--drive-root-id")
+    parser.add_argument("--model")
     parser.add_argument("--merge", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()

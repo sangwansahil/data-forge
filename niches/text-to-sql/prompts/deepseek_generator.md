@@ -21,7 +21,12 @@ Hard schema contract:
 - `columns` must be an array of `{"name": "...", "type": "INTEGER|REAL|TEXT|BOOLEAN|DATE|DATETIME"}`.
 - `rows` must be an array of objects keyed by column name, not arrays of positional values.
 - `expected_result` must be an array of objects keyed by the SQL output column aliases.
+- Every computed expression must have a simple stable alias using `AS snake_case_name`.
+- Every qualified column reference must use a table alias declared in `FROM` or `JOIN`, and the column must exist on that table.
+- Prefer explicit table aliases on multi-table queries, then use them consistently.
 - Use deterministic dates in both sample data and SQL. Avoid `DATE('now')`, `CURRENT_DATE`, or any runtime-dependent expression.
+- Use only conservative SQLite functions: `COUNT`, `SUM`, `AVG`, `MIN`, `MAX`, `COALESCE`, `NULLIF`, `IFNULL`, `ROUND`, `LOWER`, `UPPER`, `LENGTH`, `SUBSTR`, `DATE`, `DATETIME`, `JULIANDAY`, and `STRFTIME`.
+- Check function arity before output. For example, `COALESCE` needs at least two arguments, `NULLIF` needs exactly two, and `ROUND` takes one or two.
 
 Canonical shape:
 
@@ -75,6 +80,9 @@ Difficulty guidance:
 Reject your own row before output if:
 
 - The SQL would not run in SQLite.
+- Any table alias or qualified column is wrong.
+- Any SQLite function is unsupported or called with the wrong number of arguments.
+- Any output column name is an expression instead of a clear alias.
 - The expected result was guessed instead of computed.
 - The answer could be obtained without using the schema.
 - The question is generic or unnatural.

@@ -1,6 +1,6 @@
 {
   "niche": "text-to-sql",
-  "generator_model": "deepseek-chat",
+  "generator_model": "deepseek-v4-pro",
   "temperature": 0.7,
   "prompt_dir": "niches/text-to-sql/prompts",
   "acceptance_threshold": 85,
