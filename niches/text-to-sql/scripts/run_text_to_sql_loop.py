@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import multiprocessing as mp
 import os
-import signal
 import sys
 import urllib.error
 import urllib.request
@@ -29,16 +29,36 @@ from data_forge.niches.text_to_sql.gates import evaluate_text_to_sql_row  # noqa
 from data_forge.niches.text_to_sql.review import summarize_rows, utc_now  # noqa: E402
 
 
-class ApiCallTimeout(TimeoutError):
-    pass
-
-
-def _raise_api_timeout(signum: int, frame: Any) -> None:
-    raise ApiCallTimeout("DeepSeek API call timed out")
-
-
 def _load_prompt(path: Path) -> str:
     return path.read_text().strip()
+
+
+def _deepseek_worker(
+    api_key: str,
+    payload: dict[str, Any],
+    timeout_seconds: int,
+    result_queue: Any,
+) -> None:
+    request = urllib.request.Request(
+        "https://api.deepseek.com/chat/completions",
+        data=json.dumps(payload).encode(),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+            body = json.loads(response.read().decode())
+            result_queue.put(("ok", body["choices"][0]["message"]["content"]))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")
+        result_queue.put(("error", f"DeepSeek API error {exc.code}: {detail}"))
+    except (OSError, urllib.error.URLError, TimeoutError) as exc:
+        result_queue.put(("error", f"DeepSeek API network error: {exc}"))
+    except Exception as exc:  # pragma: no cover - defensive child-process boundary
+        result_queue.put(("error", f"DeepSeek API unexpected error: {type(exc).__name__}: {exc}"))
 
 
 def _call_deepseek(
@@ -55,32 +75,24 @@ def _call_deepseek(
         "response_format": {"type": "json_object"},
         "thinking": {"type": "disabled"},
     }
-    request = urllib.request.Request(
-        "https://api.deepseek.com/chat/completions",
-        data=json.dumps(payload).encode(),
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-    previous_handler = signal.getsignal(signal.SIGALRM)
-    try:
-        signal.signal(signal.SIGALRM, _raise_api_timeout)
-        signal.setitimer(signal.ITIMER_REAL, timeout_seconds)
-        with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-            body = json.loads(response.read().decode())
-            return body["choices"][0]["message"]["content"]
-    except ApiCallTimeout as exc:
-        raise RuntimeError(f"DeepSeek API timeout after {timeout_seconds} seconds") from exc
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode(errors="replace")
-        raise RuntimeError(f"DeepSeek API error {exc.code}: {detail}") from exc
-    except (OSError, urllib.error.URLError, TimeoutError) as exc:
-        raise RuntimeError(f"DeepSeek API network error: {exc}") from exc
-    finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
-        signal.signal(signal.SIGALRM, previous_handler)
+    ctx = mp.get_context("fork")
+    result_queue = ctx.Queue(maxsize=1)
+    process = ctx.Process(target=_deepseek_worker, args=(api_key, payload, timeout_seconds, result_queue))
+    process.start()
+    process.join(timeout_seconds)
+    if process.is_alive():
+        process.terminate()
+        process.join(5)
+        if process.is_alive():
+            process.kill()
+            process.join(5)
+        raise RuntimeError(f"DeepSeek API timeout after {timeout_seconds} seconds")
+    if result_queue.empty():
+        raise RuntimeError(f"DeepSeek API worker exited without a response; exit_code={process.exitcode}")
+    status, content = result_queue.get()
+    if status == "ok":
+        return str(content)
+    raise RuntimeError(str(content))
 
 
 def _extract_rows(content: str) -> list[dict[str, Any]]:
@@ -239,6 +251,18 @@ def main() -> int:
                 break
             except (JSONDecodeError, ValueError, RuntimeError) as exc:
                 last_error = exc
+                print(
+                    json.dumps(
+                        {
+                            "event": "generation_attempt_failed",
+                            "batch_id": batch_id,
+                            "attempt": attempt,
+                            "max_attempts": args.max_generation_retries + 1,
+                            "error": str(exc),
+                        }
+                    ),
+                    flush=True,
+                )
                 feedback = (
                     "Your previous response was unusable. Return valid JSON only, with a top-level rows array, "
                     "and generate fewer but fully valid rows."
