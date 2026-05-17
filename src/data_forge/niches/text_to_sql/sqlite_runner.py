@@ -37,35 +37,57 @@ def _quote_identifier(identifier: str) -> str:
 
 def _column_type(column: Mapping[str, Any]) -> str:
     declared = str(column.get("type", "TEXT")).upper()
-    allowed = {"INTEGER", "REAL", "TEXT", "BOOLEAN", "DATE", "DATETIME"}
-    if declared not in allowed:
-        raise ValueError(f"unsupported column type: {declared}")
-    if declared in {"DATE", "DATETIME"}:
-        return "TEXT"
-    if declared == "BOOLEAN":
+    if declared.startswith(("DECIMAL", "NUMERIC", "REAL", "FLOAT", "DOUBLE")):
+        return "REAL"
+    if declared.startswith(("INTEGER", "INT", "BIGINT", "SMALLINT")):
         return "INTEGER"
-    return declared
+    if declared.startswith(("TEXT", "VARCHAR", "CHAR", "STRING")):
+        return "TEXT"
+    if declared.startswith(("DATE", "DATETIME", "TIMESTAMP")):
+        return "TEXT"
+    if declared.startswith(("BOOLEAN", "BOOL")):
+        return "INTEGER"
+    raise ValueError(f"unsupported column type: {declared}")
+
+
+def _normalize_tables(schema: Mapping[str, Any]) -> list[dict[str, Any]]:
+    tables = schema.get("tables", schema)
+    if isinstance(tables, Mapping):
+        tables = [dict(table, name=name) for name, table in tables.items() if isinstance(table, Mapping)]
+    if not isinstance(tables, list) or not tables:
+        raise ValueError("schema.tables must be a non-empty list")
+    return tables
+
+
+def _normalize_columns(columns: Any) -> list[dict[str, Any]]:
+    if isinstance(columns, Mapping):
+        return [{"name": name, "type": column_type} for name, column_type in columns.items()]
+    if not isinstance(columns, list) or not columns:
+        raise ValueError("table.columns must be a non-empty list or mapping")
+    normalized = []
+    for column in columns:
+        if isinstance(column, str):
+            normalized.append({"name": column, "type": "TEXT"})
+        elif isinstance(column, Mapping):
+            normalized.append(dict(column))
+        else:
+            raise ValueError("each column must be an object or column name")
+    return normalized
 
 
 def build_sqlite_connection(schema: Mapping[str, Any]) -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
-    tables = schema.get("tables", [])
-    if not isinstance(tables, list) or not tables:
-        raise ValueError("schema.tables must be a non-empty list")
+    tables = _normalize_tables(schema)
 
     for table in tables:
         if not isinstance(table, Mapping):
             raise ValueError("each table must be an object")
         table_name = _quote_identifier(str(table.get("name", "")))
-        columns = table.get("columns", [])
-        if not isinstance(columns, list) or not columns:
-            raise ValueError("table.columns must be a non-empty list")
+        columns = _normalize_columns(table.get("columns", []))
         column_defs = []
         column_names = []
         for column in columns:
-            if not isinstance(column, Mapping):
-                raise ValueError("each column must be an object")
             name = str(column.get("name", ""))
             column_names.append(name)
             column_defs.append(f"{_quote_identifier(name)} {_column_type(column)}")
@@ -82,9 +104,12 @@ def build_sqlite_connection(schema: Mapping[str, Any]) -> sqlite3.Connection:
             insert_sql = f"INSERT INTO {table_name} ({quoted_columns}) VALUES ({placeholders})"
             values = []
             for row in rows:
-                if not isinstance(row, Mapping):
-                    raise ValueError("table row must be an object")
-                values.append([row.get(name) for name in column_names])
+                if isinstance(row, Mapping):
+                    values.append([row.get(name) for name in column_names])
+                elif isinstance(row, Sequence) and not isinstance(row, (str, bytes)):
+                    values.append(list(row))
+                else:
+                    raise ValueError("table row must be an object or value list")
             conn.executemany(insert_sql, values)
 
     return conn

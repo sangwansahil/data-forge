@@ -8,6 +8,7 @@ import sys
 import urllib.error
 import urllib.request
 from collections import Counter
+from json import JSONDecodeError
 from pathlib import Path
 from typing import Any
 
@@ -54,9 +55,14 @@ def _call_deepseek(api_key: str, model: str, messages: list[dict[str, str]], tem
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode(errors="replace")
         raise RuntimeError(f"DeepSeek API error {exc.code}: {detail}") from exc
+    except (OSError, urllib.error.URLError, TimeoutError) as exc:
+        raise RuntimeError(f"DeepSeek API network error: {exc}") from exc
 
 
 def _extract_rows(content: str) -> list[dict[str, Any]]:
+    content = content.strip()
+    if content.startswith("```"):
+        content = content.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     payload = json.loads(content)
     rows = payload.get("rows", payload)
     if not isinstance(rows, list):
@@ -132,6 +138,7 @@ def main() -> int:
     parser.add_argument("--target-accepted", type=int, default=5000)
     parser.add_argument("--batch-size", type=int, default=100)
     parser.add_argument("--max-batches", type=int, default=100)
+    parser.add_argument("--max-generation-retries", type=int, default=2)
     parser.add_argument("--storage", choices=["local", "gdrive"], default=os.environ.get("DATA_FORGE_STORAGE", "local"))
     parser.add_argument("--base-uri")
     parser.add_argument("--drive-root-id")
@@ -176,22 +183,36 @@ def main() -> int:
                 raise FileExistsError(
                     f"batch {batch_id} already has output artifacts; pass --force or choose a new --run-id: {existing}"
                 )
-        rows = _generate_rows(
-            api_key=api_key,
-            config=config,
-            prompt_dir=prompt_dir,
-            batch_id=batch_id,
-            requested_rows=args.batch_size,
-            model=model,
-            temperature=temperature,
-            feedback=feedback,
-        )
+        last_error = None
+        for attempt in range(1, args.max_generation_retries + 2):
+            try:
+                rows = _generate_rows(
+                    api_key=api_key,
+                    config=config,
+                    prompt_dir=prompt_dir,
+                    batch_id=batch_id,
+                    requested_rows=args.batch_size,
+                    model=model,
+                    temperature=temperature,
+                    feedback=feedback,
+                )
+                break
+            except (JSONDecodeError, ValueError, RuntimeError) as exc:
+                last_error = exc
+                feedback = (
+                    "Your previous response was unusable. Return valid JSON only, with a top-level rows array, "
+                    "and generate fewer but fully valid rows."
+                )
+                if attempt > args.max_generation_retries:
+                    raise RuntimeError(f"generation failed after {attempt} attempts: {last_error}") from exc
         normalized_raw = []
         accepted = []
         rejected = []
         for index, row in enumerate(rows, start=1):
             row = dict(row)
             row["id"] = f"t2sql_{batch_id}_{index:06d}"
+            if row.get("niche") != config.get("niche"):
+                row["niche"] = config.get("niche", "text-to-sql")
             row.setdefault("generation", {})
             row["generation"].update({"generator_model": model, "batch_id": batch_id})
             normalized_raw.append(row)

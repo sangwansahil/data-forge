@@ -11,6 +11,7 @@ build/
 *.egg-info/
 
 # Generated data and benchmark artifacts
+generation/
 generation/raw/
 generation/cache/
 generation/rejected/

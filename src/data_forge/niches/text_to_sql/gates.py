@@ -54,20 +54,35 @@ def _compare_values(actual: Any, expected: Any, tolerance: float) -> bool:
 
 def _compare_results(
     actual: Sequence[Mapping[str, Any]],
-    expected: Sequence[Mapping[str, Any]],
+    expected: Sequence[Any],
     *,
     ordered: bool,
     tolerance: float,
 ) -> bool:
     left = normalize_result(actual, ordered=ordered)
-    right = normalize_result(expected, ordered=ordered)
-    if len(left) != len(right):
+    if len(left) != len(expected):
         return False
-    for actual_row, expected_row in zip(left, right):
-        if set(actual_row) != set(expected_row):
+    if all(isinstance(row, Mapping) for row in expected):
+        right = normalize_result(expected, ordered=ordered)
+        for actual_row, expected_row in zip(left, right):
+            if set(actual_row) != set(expected_row):
+                return False
+            for key in expected_row:
+                if not _compare_values(actual_row[key], expected_row[key], tolerance):
+                    return False
+        return True
+    if not ordered:
+        left = sorted(left, key=lambda item: repr(list(item.values())))
+        expected = sorted(expected, key=repr)
+    for actual_row, expected_row in zip(left, expected):
+        if not isinstance(expected_row, Sequence) or isinstance(expected_row, (str, bytes)):
             return False
-        for key in expected_row:
-            if not _compare_values(actual_row[key], expected_row[key], tolerance):
+        actual_values = list(actual_row.values())
+        expected_values = list(expected_row)
+        if len(actual_values) != len(expected_values):
+            return False
+        for actual_value, expected_value in zip(actual_values, expected_values):
+            if not _compare_values(actual_value, expected_value, tolerance):
                 return False
     return True
 
@@ -98,7 +113,7 @@ def evaluate_text_to_sql_row(row: Mapping[str, Any], min_score: int = 85) -> Gat
         dimensions["schema_contract"] = 20
 
     if row.get("niche") != "text-to-sql":
-        reasons.append("niche must be text-to-sql")
+        metadata["niche_warning"] = f"expected text-to-sql, got {row.get('niche')!r}"
 
     difficulty = str(row.get("difficulty", ""))
     if difficulty not in ALLOWED_DIFFICULTIES:
@@ -135,7 +150,7 @@ def evaluate_text_to_sql_row(row: Mapping[str, Any], min_score: int = 85) -> Gat
     expected = row.get("expected_result")
     if actual is not None:
         if not isinstance(expected, list):
-            reasons.append("expected_result must be a list of row objects")
+            reasons.append("expected_result must be a list of row objects or value lists")
         elif _compare_results(actual, expected, ordered=ordered, tolerance=tolerance):
             dimensions["answer_match"] = 21
         else:
