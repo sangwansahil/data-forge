@@ -15,6 +15,13 @@ dependencies = [
   "google-auth>=2.0",
 ]
 
+[project.optional-dependencies]
+eval = [
+  "accelerate>=0.30",
+  "torch>=2.0",
+  "transformers>=4.45",
+]
+
 [project.scripts]
 data-forge = "data_forge.cli:main"
 

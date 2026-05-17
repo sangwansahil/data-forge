@@ -42,6 +42,8 @@ The first model target is Qwen3.5-4B or another permissive 2B-4B base/instruct m
 
 Produce 5,000 accepted rows with at least an 85/100 programmatic judge score, then fine-tune a 4B model and evaluate it against its base model on Spider dev and BIRD dev using the same prompt/harness.
 
+The first proof-of-work milestone is smaller: freeze the first sharded 1k dataset, run a base model on Spider dev, fine-tune that same model on the forged data, and rerun the same eval. See `proof_plan.md`.
+
 ## Commands
 
 Validate a seed row:
@@ -123,4 +125,18 @@ python3 niches/text-to-sql/scripts/export_text_to_sql_dataset.py \
   --input gdrive://niches/text-to-sql/runs/t2sql_pilot_001/reviewed/approved.jsonl \
   --signoff gdrive://niches/text-to-sql/runs/t2sql_pilot_001/manifests/signoff.json \
   --out gdrive://niches/text-to-sql/runs/t2sql_pilot_001/datasets/sft_sql_only
+```
+
+Build a Spider prompt pack and evaluate predictions:
+
+```bash
+python3 niches/text-to-sql/scripts/build_spider_prompt_pack.py \
+  --examples external/spider/dev.json \
+  --database-dir external/spider/database \
+  --out generation/niches/text-to-sql/evals/spider_dev/prompt_pack.jsonl
+
+python3 niches/text-to-sql/scripts/evaluate_sql_predictions.py \
+  --predictions generation/niches/text-to-sql/evals/spider_dev/predictions.jsonl \
+  --database-dir external/spider/database \
+  --out generation/niches/text-to-sql/evals/spider_dev/eval
 ```
