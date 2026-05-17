@@ -106,6 +106,7 @@ def _generate_rows(
     model: str,
     temperature: float,
     feedback: str,
+    shard_instruction: str | None = None,
 ) -> list[dict[str, Any]]:
     orchestrator_spec = _load_prompt(prompt_dir / "orchestrator_spec.md")
     generator_prompt = _load_prompt(prompt_dir / "deepseek_generator.md")
@@ -119,6 +120,8 @@ def _generate_rows(
         "row_contract": config["row_contract"],
         "feedback_from_previous_batch": feedback,
     }
+    if shard_instruction:
+        payload["shard_instruction"] = shard_instruction
     content = _call_deepseek(
         api_key=api_key,
         model=model,
@@ -145,6 +148,8 @@ def main() -> int:
     parser.add_argument("--model")
     parser.add_argument("--temperature", type=float)
     parser.add_argument("--min-score", type=int)
+    parser.add_argument("--domains", help="Comma-separated domain override for this run or shard")
+    parser.add_argument("--shard-instruction", help="Extra generator instruction for a sharded run")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
 
@@ -154,6 +159,8 @@ def main() -> int:
 
     config_path = Path(args.config)
     config = json.loads(config_path.read_text())
+    if args.domains:
+        config["domains"] = [domain.strip() for domain in args.domains.split(",") if domain.strip()]
     prompt_dir = ROOT / config["prompt_dir"]
     model = args.model or config.get("generator_model", "deepseek-chat")
     temperature = args.temperature if args.temperature is not None else float(config.get("temperature", 0.7))
@@ -195,6 +202,7 @@ def main() -> int:
                     model=model,
                     temperature=temperature,
                     feedback=feedback,
+                    shard_instruction=args.shard_instruction,
                 )
                 break
             except (JSONDecodeError, ValueError, RuntimeError) as exc:

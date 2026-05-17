@@ -28,3 +28,30 @@ Each niche owns its executable or deterministic validation layer. Examples inclu
 ## Data policy
 
 Do not train on public benchmark test/dev rows. The point is to teach transferable skills, then prove them on public benchmarks. Benchmark examples can inform taxonomies and difficulty targets, but not row text or gold SQL.
+
+## Sharded generation
+
+Large dataset runs should use independent shards instead of one large serial generator loop.
+
+Each shard writes to a unique run path:
+
+```text
+runs/{run_id}/
+  shards/
+    {run_id}_shard_01_<slice>/
+      raw/
+      accepted/
+      rejected/
+      reports/
+    {run_id}_shard_02_<slice>/
+      ...
+  merged/
+    accepted.jsonl
+    duplicates.jsonl
+    merge_manifest.json
+  review/
+```
+
+This avoids write races, makes retries cheap, and lets each shard target a different domain, task family, skill mix, or difficulty band. Shards can run concurrently as local subprocesses, cloud jobs, or agent-managed workers. The merge step is deterministic: accepted rows are fingerprinted, duplicates are removed, and one merged manifest records shard counts, duplicate counts, score summaries, and distribution summaries.
+
+Do not have multiple workers write to the same `raw/`, `accepted/`, `rejected/`, or `reports/` directory. Parallelism should happen across shard directories, followed by merge and review.

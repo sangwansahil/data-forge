@@ -10,6 +10,7 @@ This repository is designed to be cloned and adapted for new niches. A niche can
 
 - A reusable storage layer with `local://` and `gdrive://` backends.
 - A pattern for niche-specific generation prompts, validators, reports, review packets, and dataset exports.
+- Sharded generation for running independent workers in parallel without write races.
 - Static HTML review packets for human approval without running a server.
 - Signoff enforcement before fine-tuning exports.
 - Testable quality gates instead of trust-based synthetic data.
@@ -72,11 +73,12 @@ See `docs/google_drive_storage.md` for Drive setup.
 2. Generate raw candidate rows with a cheap or high-throughput generator model.
 3. Run deterministic gates and rubric scoring.
 4. Archive rejected rows with reasons.
-5. Build static HTML review packets for accepted rows.
-6. Apply human review decisions.
-7. Create a signoff manifest.
-8. Export only approved rows into training-ready datasets.
-9. Evaluate the trained model against public or private benchmarks.
+5. For larger runs, generate multiple independent shards and merge/dedupe accepted rows.
+6. Build static HTML review packets for accepted rows.
+7. Apply human review decisions.
+8. Create a signoff manifest.
+9. Export only approved rows into training-ready datasets.
+10. Evaluate the trained model against public or private benchmarks.
 
 ## Building a New Niche
 

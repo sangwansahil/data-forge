@@ -64,6 +64,37 @@ python3 niches/text-to-sql/scripts/run_text_to_sql_loop.py \
   --drive-root-id "$DATA_FORGE_DRIVE_ROOT_ID"
 ```
 
+Run sharded local generation:
+
+```bash
+export DEEPSEEK_API_KEY=...
+
+python3 niches/text-to-sql/scripts/run_text_to_sql_sharded.py \
+  --run-id t2sql_parallel_1k_001 \
+  --target-accepted-total 1000 \
+  --shard-count 10 \
+  --parallelism 5 \
+  --batch-size 5 \
+  --max-batches-per-shard 80 \
+  --storage local
+```
+
+The sharded runner creates one independent run per domain slice under:
+
+```text
+generation/niches/text-to-sql/runs/t2sql_parallel_1k_001/shards/
+```
+
+After all shards finish, it merges accepted rows into:
+
+```text
+generation/niches/text-to-sql/runs/t2sql_parallel_1k_001/merged/accepted.jsonl
+generation/niches/text-to-sql/runs/t2sql_parallel_1k_001/merged/duplicates.jsonl
+generation/niches/text-to-sql/runs/t2sql_parallel_1k_001/merged/merge_manifest.json
+```
+
+Use `--parallelism` to control API concurrency. Start with `5`; increase only after the API is stable.
+
 Build review packets:
 
 ```bash
