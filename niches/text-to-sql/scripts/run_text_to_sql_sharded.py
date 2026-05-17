@@ -17,9 +17,25 @@ if str(SRC) not in sys.path:
 from data_forge.core.storage import client_for_uri, join_uri  # noqa: E402
 from data_forge.niches.text_to_sql.shards import (  # noqa: E402
     DEFAULT_SHARDS,
+    ShardSpec,
     merge_accepted_shards,
     shard_instruction,
 )
+
+
+def _spec_for_index(index: int) -> ShardSpec:
+    base = DEFAULT_SHARDS[(index - 1) % len(DEFAULT_SHARDS)]
+    lane = ((index - 1) // len(DEFAULT_SHARDS)) + 1
+    if lane == 1:
+        return base
+    return ShardSpec(
+        name=f"{base.name}_lane_{lane:02d}",
+        domains=base.domains,
+        instruction=(
+            f"{base.instruction} This is parallel lane {lane} for this domain; use different schema shapes, "
+            "entity names, date ranges, metrics, and business questions from other lanes."
+        ),
+    )
 
 
 def _shard_run_id(run_id: str, index: int, name: str) -> str:
@@ -28,7 +44,7 @@ def _shard_run_id(run_id: str, index: int, name: str) -> str:
 
 
 def _run_command(args: argparse.Namespace, index: int, shard_count: int, log_path: Path) -> list[str]:
-    spec = DEFAULT_SHARDS[index - 1]
+    spec = _spec_for_index(index)
     shard_run_id = _shard_run_id(args.run_id, index, spec.name)
     base_uri = join_uri(args.base_uri, "shards", shard_run_id)
     command = [
@@ -104,8 +120,8 @@ def main() -> int:
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
 
-    if args.shard_count < 1 or args.shard_count > len(DEFAULT_SHARDS):
-        raise SystemExit(f"--shard-count must be between 1 and {len(DEFAULT_SHARDS)}")
+    if args.shard_count < 1:
+        raise SystemExit("--shard-count must be at least 1")
     if args.parallelism < 1:
         raise SystemExit("--parallelism must be at least 1")
     if not os.environ.get("DEEPSEEK_API_KEY"):
@@ -127,7 +143,7 @@ def main() -> int:
     while pending or active:
         while pending and len(active) < args.parallelism:
             index = pending.pop(0)
-            spec = DEFAULT_SHARDS[index - 1]
+            spec = _spec_for_index(index)
             name = _shard_run_id(args.run_id, index, spec.name)
             log_path = log_dir / f"{name}.log"
             command = _run_command(args, index, args.shard_count, log_path)
