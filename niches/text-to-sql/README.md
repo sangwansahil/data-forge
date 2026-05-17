@@ -149,3 +149,28 @@ python3 niches/text-to-sql/scripts/run_mlx_text_to_sql_inference.py \
   --input generation/niches/text-to-sql/evals/spider_dev/prompt_pack.jsonl \
   --out generation/niches/text-to-sql/evals/spider_dev/qwen4b_base_predictions.jsonl
 ```
+
+Run a local Qwen3.5-4B LoRA fine-tune on Apple Silicon:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip setuptools wheel
+.venv/bin/python -m pip install -e ".[train]"
+
+.venv/bin/python niches/text-to-sql/scripts/train_qwen35_lora_local.py \
+  --model Qwen/Qwen3.5-4B \
+  --train generation/niches/text-to-sql/runs/t2sql_parallel_1k_001/datasets/sft_sql_only/train.jsonl \
+  --validation generation/niches/text-to-sql/runs/t2sql_parallel_1k_001/datasets/sft_sql_only/validation.jsonl \
+  --out generation/niches/text-to-sql/runs/t2sql_parallel_1k_001/models/qwen35_4b_lora_mps_float32_200 \
+  --dtype float32 \
+  --max-steps 200 \
+  --max-length 768 \
+  --batch-size 1 \
+  --grad-accum 8 \
+  --lr 0.00005 \
+  --eval-every 50 \
+  --eval-batches 0 \
+  --no-validation
+```
+
+Use `float32` on MPS for stability. `float16` is faster but can produce non-finite losses on this model path.

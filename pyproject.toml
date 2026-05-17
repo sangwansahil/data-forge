@@ -24,6 +24,13 @@ eval = [
 mlx = [
   "mlx-lm>=0.21",
 ]
+train = [
+  "accelerate>=0.30",
+  "datasets>=2.20",
+  "peft>=0.12",
+  "torch>=2.0",
+  "transformers @ git+https://github.com/huggingface/transformers.git",
+]
 
 [project.scripts]
 data-forge = "data_forge.cli:main"
