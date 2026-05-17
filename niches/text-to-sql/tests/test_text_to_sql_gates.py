@@ -62,6 +62,22 @@ class TextToSqlGateTests(unittest.TestCase):
         self.assertFalse(result.accepted)
         self.assertTrue(any("stable alias" in reason for reason in result.reasons), result.to_dict())
 
+    def test_allows_cte_alias_references(self) -> None:
+        row = json.loads((ROOT / "niches/text-to-sql/examples/accepted_row.json").read_text())
+        row["gold_sql"] = (
+            "WITH shipment_counts AS ("
+            "SELECT carrier_id, COUNT(*) AS completed_shipments "
+            "FROM shipments WHERE status = 'completed' GROUP BY carrier_id"
+            ") "
+            "SELECT sc.carrier_id, sc.completed_shipments "
+            "FROM shipment_counts AS sc "
+            "WHERE sc.completed_shipments >= 2 "
+            "ORDER BY sc.completed_shipments DESC;"
+        )
+        row["expected_result"] = [{"carrier_id": 2, "completed_shipments": 3}, {"carrier_id": 1, "completed_shipments": 2}]
+        result = evaluate_text_to_sql_row(row)
+        self.assertTrue(result.accepted, result.to_dict())
+
 
 if __name__ == "__main__":
     unittest.main()

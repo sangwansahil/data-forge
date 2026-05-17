@@ -33,6 +33,11 @@ SQL_TABLE_ALIAS = re.compile(
     r"\b(?:FROM|JOIN)\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:AS\s+)?([A-Za-z_][A-Za-z0-9_]*)?",
     re.IGNORECASE,
 )
+SQL_CTE = re.compile(r"(?:\bWITH|,)\s+([A-Za-z_][A-Za-z0-9_]*)\s+AS\s*\(", re.IGNORECASE)
+SQL_SUBQUERY_ALIAS = re.compile(
+    r"\)\s+(?:AS\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?=\b(?:ON|WHERE|GROUP|ORDER|HAVING|JOIN|LEFT|RIGHT|INNER|FULL|CROSS|LIMIT)\b|,|$)",
+    re.IGNORECASE,
+)
 SQL_QUALIFIED_COLUMN = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\b")
 SQL_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 SQL_KEYWORDS = {
@@ -255,10 +260,19 @@ def _sql_static_reasons(row: Mapping[str, Any], actual: Sequence[Mapping[str, An
     sql = _strip_sql_strings(gold_sql)
     schema_columns = _schema_columns(row.get("schema"))
 
-    alias_to_table: dict[str, str] = {}
+    cte_names = {name.lower() for name in SQL_CTE.findall(sql)}
+    alias_to_table: dict[str, str | None] = {name: None for name in cte_names}
+    for alias in SQL_SUBQUERY_ALIAS.findall(sql):
+        if alias.lower() not in SQL_KEYWORDS:
+            alias_to_table[alias.lower()] = None
     for table, alias in SQL_TABLE_ALIAS.findall(sql):
         table_key = table.lower()
         alias_key = (alias or table).lower()
+        if table_key in cte_names:
+            alias_to_table[table_key] = None
+            if alias_key not in SQL_KEYWORDS:
+                alias_to_table[alias_key] = None
+            continue
         if table_key not in schema_columns:
             reasons.append(f"SQL references unknown table: {table}")
             continue
@@ -273,6 +287,8 @@ def _sql_static_reasons(row: Mapping[str, Any], actual: Sequence[Mapping[str, An
             reasons.append(f"SQL references unknown table alias: {qualifier}")
             continue
         table_key = alias_to_table[qualifier_key]
+        if table_key is None:
+            continue
         if column_key not in schema_columns.get(table_key, set()):
             reasons.append(f"SQL references unknown column for alias {qualifier}: {column}")
 
