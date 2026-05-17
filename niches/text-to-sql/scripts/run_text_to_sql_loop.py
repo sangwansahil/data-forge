@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import signal
 import sys
 import urllib.error
 import urllib.request
@@ -28,11 +29,25 @@ from data_forge.niches.text_to_sql.gates import evaluate_text_to_sql_row  # noqa
 from data_forge.niches.text_to_sql.review import summarize_rows, utc_now  # noqa: E402
 
 
+class ApiCallTimeout(TimeoutError):
+    pass
+
+
+def _raise_api_timeout(signum: int, frame: Any) -> None:
+    raise ApiCallTimeout("DeepSeek API call timed out")
+
+
 def _load_prompt(path: Path) -> str:
     return path.read_text().strip()
 
 
-def _call_deepseek(api_key: str, model: str, messages: list[dict[str, str]], temperature: float) -> str:
+def _call_deepseek(
+    api_key: str,
+    model: str,
+    messages: list[dict[str, str]],
+    temperature: float,
+    timeout_seconds: int,
+) -> str:
     payload = {
         "model": model,
         "messages": messages,
@@ -49,15 +64,23 @@ def _call_deepseek(api_key: str, model: str, messages: list[dict[str, str]], tem
         },
         method="POST",
     )
+    previous_handler = signal.getsignal(signal.SIGALRM)
     try:
-        with urllib.request.urlopen(request, timeout=180) as response:
+        signal.signal(signal.SIGALRM, _raise_api_timeout)
+        signal.setitimer(signal.ITIMER_REAL, timeout_seconds)
+        with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
             body = json.loads(response.read().decode())
             return body["choices"][0]["message"]["content"]
+    except ApiCallTimeout as exc:
+        raise RuntimeError(f"DeepSeek API timeout after {timeout_seconds} seconds") from exc
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode(errors="replace")
         raise RuntimeError(f"DeepSeek API error {exc.code}: {detail}") from exc
     except (OSError, urllib.error.URLError, TimeoutError) as exc:
         raise RuntimeError(f"DeepSeek API network error: {exc}") from exc
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
 
 
 def _extract_rows(content: str) -> list[dict[str, Any]]:
@@ -110,6 +133,7 @@ def _generate_rows(
     requested_rows: int,
     model: str,
     temperature: float,
+    timeout_seconds: int,
     feedback: str,
     shard_instruction: str | None = None,
 ) -> list[dict[str, Any]]:
@@ -131,6 +155,7 @@ def _generate_rows(
         api_key=api_key,
         model=model,
         temperature=temperature,
+        timeout_seconds=timeout_seconds,
         messages=[
             {"role": "system", "content": orchestrator_spec},
             {"role": "user", "content": generator_prompt + "\n\n" + json.dumps(payload, indent=2)},
@@ -147,6 +172,7 @@ def main() -> int:
     parser.add_argument("--batch-size", type=int, default=100)
     parser.add_argument("--max-batches", type=int, default=100)
     parser.add_argument("--max-generation-retries", type=int, default=2)
+    parser.add_argument("--api-timeout-seconds", type=int, default=90)
     parser.add_argument("--storage", choices=["local", "gdrive"], default=os.environ.get("DATA_FORGE_STORAGE", "local"))
     parser.add_argument("--base-uri")
     parser.add_argument("--drive-root-id")
@@ -206,6 +232,7 @@ def main() -> int:
                     requested_rows=args.batch_size,
                     model=model,
                     temperature=temperature,
+                    timeout_seconds=args.api_timeout_seconds,
                     feedback=feedback,
                     shard_instruction=args.shard_instruction,
                 )

@@ -46,6 +46,8 @@ def _run_command(args: argparse.Namespace, index: int, shard_count: int, log_pat
         str(args.max_batches_per_shard),
         "--max-generation-retries",
         str(args.max_generation_retries),
+        "--api-timeout-seconds",
+        str(args.api_timeout_seconds),
         "--storage",
         args.storage,
         "--base-uri",
@@ -93,6 +95,7 @@ def main() -> int:
     parser.add_argument("--batch-size", type=int, default=5)
     parser.add_argument("--max-batches-per-shard", type=int, default=80)
     parser.add_argument("--max-generation-retries", type=int, default=3)
+    parser.add_argument("--api-timeout-seconds", type=int, default=90)
     parser.add_argument("--storage", choices=["local", "gdrive"], default=os.environ.get("DATA_FORGE_STORAGE", "local"))
     parser.add_argument("--base-uri")
     parser.add_argument("--drive-root-id")
