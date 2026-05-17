@@ -46,6 +46,8 @@ SQL_QUALIFIED_COLUMN = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-
 SQL_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 SQL_KEYWORDS = {
     "as",
+    "and",
+    "between",
     "by",
     "case",
     "cast",
@@ -68,6 +70,7 @@ SQL_KEYWORDS = {
     "not",
     "null",
     "on",
+    "or",
     "order",
     "over",
     "partition",
