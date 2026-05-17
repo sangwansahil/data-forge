@@ -33,9 +33,13 @@ SQL_TABLE_ALIAS = re.compile(
     r"\b(?:FROM|JOIN)\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:AS\s+)?([A-Za-z_][A-Za-z0-9_]*)?",
     re.IGNORECASE,
 )
+SQL_COMMA_TABLE_ALIAS = re.compile(
+    r",\s*([A-Za-z_][A-Za-z0-9_]*)\s+(?:AS\s+)?([A-Za-z_][A-Za-z0-9_]*)\b",
+    re.IGNORECASE,
+)
 SQL_CTE = re.compile(r"(?:\bWITH|,)\s+([A-Za-z_][A-Za-z0-9_]*)\s+AS\s*\(", re.IGNORECASE)
 SQL_SUBQUERY_ALIAS = re.compile(
-    r"\)\s+(?:AS\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?=\b(?:ON|WHERE|GROUP|ORDER|HAVING|JOIN|LEFT|RIGHT|INNER|FULL|CROSS|LIMIT)\b|,|$)",
+    r"\)\s+(?:AS\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?=\b(?:ON|WHERE|GROUP|ORDER|HAVING|JOIN|LEFT|RIGHT|INNER|FULL|CROSS|LIMIT)\b|,|\)|$)",
     re.IGNORECASE,
 )
 SQL_QUALIFIED_COLUMN = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\b")
@@ -50,6 +54,7 @@ SQL_KEYWORDS = {
     "desc",
     "else",
     "end",
+    "exists",
     "from",
     "group",
     "having",
@@ -279,6 +284,18 @@ def _sql_static_reasons(row: Mapping[str, Any], actual: Sequence[Mapping[str, An
         alias_to_table[table_key] = table_key
         if alias_key not in SQL_KEYWORDS:
             alias_to_table[alias_key] = table_key
+    for table, alias in SQL_COMMA_TABLE_ALIAS.findall(sql):
+        table_key = table.lower()
+        alias_key = alias.lower()
+        if table_key in cte_names:
+            alias_to_table[table_key] = None
+            if alias_key not in SQL_KEYWORDS:
+                alias_to_table[alias_key] = None
+            continue
+        if table_key in schema_columns:
+            alias_to_table[table_key] = table_key
+            if alias_key not in SQL_KEYWORDS:
+                alias_to_table[alias_key] = table_key
 
     for qualifier, column in SQL_QUALIFIED_COLUMN.findall(sql):
         qualifier_key = qualifier.lower()

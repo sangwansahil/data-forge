@@ -78,6 +78,23 @@ class TextToSqlGateTests(unittest.TestCase):
         result = evaluate_text_to_sql_row(row)
         self.assertTrue(result.accepted, result.to_dict())
 
+    def test_allows_exists_and_comma_joined_cte_aliases(self) -> None:
+        row = json.loads((ROOT / "niches/text-to-sql/examples/accepted_row.json").read_text())
+        row["gold_sql"] = (
+            "WITH completed AS ("
+            "SELECT carrier_id, COUNT(*) AS completed_shipments "
+            "FROM shipments WHERE status = 'completed' GROUP BY carrier_id"
+            "), threshold AS (SELECT 2 AS min_shipments) "
+            "SELECT c.carrier_id, c.completed_shipments "
+            "FROM completed c, threshold t "
+            "WHERE c.completed_shipments >= t.min_shipments "
+            "AND EXISTS (SELECT 1 FROM carriers ca WHERE ca.carrier_id = c.carrier_id) "
+            "ORDER BY c.completed_shipments DESC;"
+        )
+        row["expected_result"] = [{"carrier_id": 2, "completed_shipments": 3}, {"carrier_id": 1, "completed_shipments": 2}]
+        result = evaluate_text_to_sql_row(row)
+        self.assertTrue(result.accepted, result.to_dict())
+
 
 if __name__ == "__main__":
     unittest.main()
