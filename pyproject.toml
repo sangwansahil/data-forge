@@ -21,6 +21,9 @@ eval = [
   "torch>=2.0",
   "transformers>=4.45",
 ]
+mlx = [
+  "mlx-lm>=0.21",
+]
 
 [project.scripts]
 data-forge = "data_forge.cli:main"
