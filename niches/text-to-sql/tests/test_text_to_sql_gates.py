@@ -78,6 +78,12 @@ class TextToSqlGateTests(unittest.TestCase):
         result = evaluate_text_to_sql_row(row)
         self.assertTrue(result.accepted, result.to_dict())
 
+    def test_accepts_null_float_tolerance_as_default(self) -> None:
+        row = json.loads((ROOT / "niches/text-to-sql/examples/accepted_row.json").read_text())
+        row["verifier"]["float_tolerance"] = None
+        result = evaluate_text_to_sql_row(row)
+        self.assertTrue(result.accepted, result.to_dict())
+
     def test_allows_exists_and_comma_joined_cte_aliases(self) -> None:
         row = json.loads((ROOT / "niches/text-to-sql/examples/accepted_row.json").read_text())
         row["gold_sql"] = (

@@ -383,7 +383,8 @@ def evaluate_text_to_sql_row(row: Mapping[str, Any], min_score: int = 85) -> Gat
 
     verifier = row.get("verifier", {})
     ordered = bool(verifier.get("ordered", False)) if isinstance(verifier, Mapping) else False
-    tolerance = float(verifier.get("float_tolerance", 1e-6)) if isinstance(verifier, Mapping) else 1e-6
+    raw_tolerance = verifier.get("float_tolerance", 1e-6) if isinstance(verifier, Mapping) else 1e-6
+    tolerance = float(raw_tolerance) if raw_tolerance is not None else 1e-6
 
     actual: list[dict[str, Any]] | None = None
     if not reasons or "missing required fields" not in " ".join(reasons):
