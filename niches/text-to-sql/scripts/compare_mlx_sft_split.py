@@ -26,9 +26,10 @@ SQL_START_RE = re.compile(r"\b(?:WITH|SELECT|INSERT|UPDATE|DELETE)\b.*", re.IGNO
 def _load_mlx():
     try:
         from mlx_lm import generate, load
+        from mlx_lm.sample_utils import make_sampler
     except ImportError as exc:
         raise SystemExit("Missing MLX dependencies. Install with: python3 -m pip install -e '.[mlx]'") from exc
-    return load, generate
+    return load, generate, make_sampler
 
 
 def _iter_jsonl(path: Path):
@@ -110,9 +111,9 @@ def _norm_result(rows: list[tuple[Any, ...]] | None) -> list[tuple[Any, ...]] | 
 
 
 def _load_model(model_name: str, adapter: str | None):
-    load, generate = _load_mlx()
+    load, generate, make_sampler = _load_mlx()
     model, tokenizer = load(model_name, adapter_path=adapter)
-    return generate, model, tokenizer
+    return generate, make_sampler, model, tokenizer
 
 
 def _chat_prompt(tokenizer, record: dict[str, Any]) -> str:
@@ -127,15 +128,15 @@ def _chat_prompt(tokenizer, record: dict[str, Any]) -> str:
         return tokenizer.apply_chat_template(_prompt_messages(record), tokenize=False, add_generation_prompt=True)
 
 
-def _predict(generate, model, tokenizer, record: dict[str, Any], max_tokens: int, temp: float) -> tuple[str, float]:
+def _predict(generate, sampler, model, tokenizer, record: dict[str, Any], max_tokens: int) -> tuple[str, float]:
     start = time.time()
     prediction = generate(
         model,
         tokenizer,
         prompt=_chat_prompt(tokenizer, record),
         max_tokens=max_tokens,
-        temp=temp,
         verbose=False,
+        sampler=sampler,
     ).strip()
     return prediction, time.time() - start
 
@@ -191,11 +192,12 @@ def _score(records: list[dict[str, Any]], predictions: list[dict[str, Any]]) -> 
 
 
 def _run_label(label: str, records: list[dict[str, Any]], args, adapter: str | None) -> dict[str, Any]:
-    generate, model, tokenizer = _load_model(args.model, adapter)
+    generate, make_sampler, model, tokenizer = _load_model(args.model, adapter)
+    sampler = make_sampler(args.temperature)
     predictions = []
     start = time.time()
     for index, record in enumerate(records, start=1):
-        prediction, elapsed = _predict(generate, model, tokenizer, record, args.max_tokens, args.temperature)
+        prediction, elapsed = _predict(generate, sampler, model, tokenizer, record, args.max_tokens)
         predictions.append({"index": index, "prediction": prediction, "latency_seconds": round(elapsed, 4)})
         print(json.dumps({"label": label, "index": index, "total": len(records), "latency_seconds": round(elapsed, 2)}), flush=True)
     scored = _score(records, predictions)
