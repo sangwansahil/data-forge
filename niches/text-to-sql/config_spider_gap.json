@@ -1,0 +1,76 @@
+{
+  "niche": "text-to-sql",
+  "generator_model": "deepseek-chat",
+  "temperature": 0.55,
+  "prompt_dir": "niches/text-to-sql/prompts",
+  "acceptance_threshold": 85,
+  "target_benchmarks": [
+    "Spider 1.0 dev",
+    "BIRD dev",
+    "Spider-style execution accuracy"
+  ],
+  "domains": [
+    "cars_makers_specs",
+    "geography_languages",
+    "sports_players_matches",
+    "education_transcripts",
+    "pets_treatments",
+    "concerts_stadiums",
+    "real_estate_assets",
+    "flights_routes",
+    "documents_templates",
+    "network_assets"
+  ],
+  "skill_mix": {
+    "multi_join": 0.16,
+    "nested_query": 0.16,
+    "group_by_having": 0.14,
+    "set_operation": 0.12,
+    "anti_join": 0.1,
+    "schema_linking_trap": 0.1,
+    "answer_shape_trap": 0.1,
+    "top_k": 0.06,
+    "comparator_negation": 0.04,
+    "null_handling": 0.02
+  },
+  "generator_focus": {
+    "purpose": "Generate targeted hard-SQL and exact benchmark answer-shape training rows to close Spider dev gaps.",
+    "difficulty_quota": {
+      "easy": 0.0,
+      "medium": 0.1,
+      "hard": 0.55,
+      "expert": 0.35
+    },
+    "required_biases": [
+      "Prefer 2-4 table joins over one-table queries.",
+      "Prefer nested queries, correlated subqueries, GROUP BY/HAVING, set operations, anti-joins, and top-k superlatives.",
+      "Create exact answer-shape traps: if the question asks for only names, return only names; if it asks for id and name, return exactly those two columns; never include helper counts/scores unless explicitly requested.",
+      "Create schema-linking traps where words like average, rank, year, code, name, and id may refer to actual columns rather than aggregate functions.",
+      "Create comparator and negation phrasing: not, without, no, except, never, more than, fewer than, at least, at most, highest rank, lowest value.",
+      "Use benchmark-like schemas and wording without copying public benchmark rows or mentioning benchmark names in the row."
+    ],
+    "reject_before_output_if": [
+      "The SQL selects extra columns not explicitly requested by the question.",
+      "The SQL uses AVG(column) when the question refers to an existing column named average or avg_score.",
+      "The SQL uses a display name when the question asks for an id, or uses an id when the question asks for a name.",
+      "The SQL omits HAVING where filtering grouped counts/sums is required.",
+      "The SQL can be answered without the hard skill assigned to the row."
+    ]
+  },
+  "row_contract": {
+    "dialect": "sqlite",
+    "required_fields": [
+      "id",
+      "niche",
+      "domain",
+      "difficulty",
+      "skills",
+      "instruction",
+      "schema",
+      "gold_sql",
+      "expected_result",
+      "verifier",
+      "generation"
+    ]
+  }
+}

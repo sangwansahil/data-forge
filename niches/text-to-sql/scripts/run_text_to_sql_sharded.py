@@ -16,16 +16,17 @@ if str(SRC) not in sys.path:
 
 from data_forge.core.storage import client_for_uri, join_uri  # noqa: E402
 from data_forge.niches.text_to_sql.shards import (  # noqa: E402
-    DEFAULT_SHARDS,
     ShardSpec,
+    SHARD_PROFILES,
     merge_accepted_shards,
     shard_instruction,
 )
 
 
-def _spec_for_index(index: int) -> ShardSpec:
-    base = DEFAULT_SHARDS[(index - 1) % len(DEFAULT_SHARDS)]
-    lane = ((index - 1) // len(DEFAULT_SHARDS)) + 1
+def _spec_for_index(index: int, profile: str) -> ShardSpec:
+    shards = SHARD_PROFILES[profile]
+    base = shards[(index - 1) % len(shards)]
+    lane = ((index - 1) // len(shards)) + 1
     if lane == 1:
         return base
     return ShardSpec(
@@ -44,7 +45,7 @@ def _shard_run_id(run_id: str, index: int, name: str) -> str:
 
 
 def _run_command(args: argparse.Namespace, index: int, shard_count: int, log_path: Path) -> list[str]:
-    spec = _spec_for_index(index)
+    spec = _spec_for_index(index, args.shard_profile)
     shard_run_id = _shard_run_id(args.run_id, index, spec.name)
     base_uri = join_uri(args.base_uri, "shards", shard_run_id)
     command = [
@@ -107,6 +108,7 @@ def main() -> int:
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--target-accepted-total", type=int, default=1000)
     parser.add_argument("--shard-count", type=int, default=10)
+    parser.add_argument("--shard-profile", choices=sorted(SHARD_PROFILES), default="default")
     parser.add_argument("--parallelism", type=int, default=5)
     parser.add_argument("--batch-size", type=int, default=5)
     parser.add_argument("--max-batches-per-shard", type=int, default=80)
@@ -143,7 +145,7 @@ def main() -> int:
     while pending or active:
         while pending and len(active) < args.parallelism:
             index = pending.pop(0)
-            spec = _spec_for_index(index)
+            spec = _spec_for_index(index, args.shard_profile)
             name = _shard_run_id(args.run_id, index, spec.name)
             log_path = log_dir / f"{name}.log"
             command = _run_command(args, index, args.shard_count, log_path)
@@ -160,6 +162,7 @@ def main() -> int:
         "run_id": args.run_id,
         "base_uri": args.base_uri,
         "shard_count": args.shard_count,
+        "shard_profile": args.shard_profile,
         "parallelism": args.parallelism,
         "shard_target_accepted": args.shard_target_accepted,
         "exit_codes": exit_codes,

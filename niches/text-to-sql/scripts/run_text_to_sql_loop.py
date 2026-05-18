@@ -161,6 +161,8 @@ def _generate_rows(
         "row_contract": config["row_contract"],
         "feedback_from_previous_batch": feedback,
     }
+    if config.get("generator_focus"):
+        payload["generator_focus"] = config["generator_focus"]
     if shard_instruction:
         payload["shard_instruction"] = shard_instruction
     content = _call_deepseek(

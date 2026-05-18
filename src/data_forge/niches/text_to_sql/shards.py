@@ -67,13 +67,102 @@ DEFAULT_SHARDS = [
     ),
 ]
 
+SPIDER_GAP_SHARDS = [
+    ShardSpec(
+        name="cars_makers_specs",
+        domains=["cars_makers_specs"],
+        instruction=(
+            "Focus on car makers, models, specs, horsepower, weight, year, country, and maker/model bridge tables. "
+            "Create multi-hop joins, top-k superlatives, average-comparison subqueries, and exact answer-shape traps."
+        ),
+    ),
+    ShardSpec(
+        name="geography_languages",
+        domains=["geography_languages"],
+        instruction=(
+            "Focus on countries, cities, regions, continents, government forms, populations, and country-language percentages. "
+            "Create schema-linking traps with Code versus Name, exact literal matching, joins, grouping, and top language questions."
+        ),
+    ),
+    ShardSpec(
+        name="sports_players_matches",
+        domains=["sports_players_matches"],
+        instruction=(
+            "Focus on players, matches, rankings, tournaments, winners, losers, ages, and country codes. "
+            "Create INTERSECT/EXCEPT cases, rank semantics where lower rank is better, and exact output-column questions."
+        ),
+    ),
+    ShardSpec(
+        name="education_transcripts",
+        domains=["education_transcripts"],
+        instruction=(
+            "Focus on departments, degree programs, courses, sections, students, transcripts, semesters, and instructors. "
+            "Create GROUP BY/HAVING, most/least departments, substring LIKE traps, and schema-linking ambiguity."
+        ),
+    ),
+    ShardSpec(
+        name="pets_treatments",
+        domains=["pets_treatments"],
+        instruction=(
+            "Focus on dogs, owners, professionals, treatments, costs, breeds, and visits. "
+            "Create anti-joins, NOT IN, UNION/EXCEPT, treatment-cost thresholds, and include/exclude entity wording traps."
+        ),
+    ),
+    ShardSpec(
+        name="concerts_stadiums",
+        domains=["concerts_stadiums"],
+        instruction=(
+            "Focus on singers, songs, concerts, stadiums, capacities, attendance averages, and participation bridge tables. "
+            "Create top-k, aggregation versus column-name traps, multi-table joins, and exact answer-shape questions."
+        ),
+    ),
+    ShardSpec(
+        name="real_estate_assets",
+        domains=["real_estate_assets"],
+        instruction=(
+            "Focus on properties, owners, addresses, rooms, features, prices, leases, and inspections. "
+            "Create long SQL, nested subqueries, null handling, and exact requested-column outputs."
+        ),
+    ),
+    ShardSpec(
+        name="flights_routes",
+        domains=["flights_routes"],
+        instruction=(
+            "Focus on airports, airlines, routes, flights, aircraft, delays, and city/country codes. "
+            "Create multi-hop joins, set operations, date filters, and origin/destination schema-linking traps."
+        ),
+    ),
+    ShardSpec(
+        name="documents_templates",
+        domains=["documents_templates"],
+        instruction=(
+            "Focus on documents, templates, paragraphs, users, roles, statuses, and revisions. "
+            "Create nested queries, GROUP BY/HAVING, optional relationships, and exact output shape traps."
+        ),
+    ),
+    ShardSpec(
+        name="network_assets",
+        domains=["network_assets"],
+        instruction=(
+            "Focus on devices, ports, links, VLANs, incidents, locations, owners, and maintenance records. "
+            "Create 3-4 table joins, anti-joins, ambiguous id/name columns, and long SQL with conservative SQLite syntax."
+        ),
+    ),
+]
+
+SHARD_PROFILES = {
+    "default": DEFAULT_SHARDS,
+    "spider_gap": SPIDER_GAP_SHARDS,
+}
+
 
 def shard_instruction(spec: ShardSpec, *, shard_index: int, shard_count: int) -> str:
     return (
         f"This is shard {shard_index} of {shard_count}. Generate only the assigned domain(s): "
         f"{', '.join(spec.domains)}. {spec.instruction} "
-        "Prioritize exact expected_result computation. Include a balanced mix of easy, medium, hard, and expert rows. "
-        "Use underrepresented skills when natural: set operations, schema-linking traps, null handling, anti-joins, and conditional aggregation."
+        "Prioritize exact expected_result computation and exact answer shape. Include mostly hard and expert rows unless the "
+        "run config says otherwise. Use underrepresented skills when natural: set operations, schema-linking traps, "
+        "null handling, anti-joins, conditional aggregation, nested queries, multi-hop joins, and GROUP BY/HAVING."
     )
 
 
