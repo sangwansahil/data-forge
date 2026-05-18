@@ -9,12 +9,13 @@ from pathlib import Path
 def _load_mlx():
     try:
         from mlx_lm import generate, load
+        from mlx_lm.sample_utils import make_sampler
     except ImportError as exc:
         raise SystemExit(
             "mlx-lm is required for Apple Silicon inference. Install with: "
             "python3 -m pip install -e '.[mlx]'"
         ) from exc
-    return load, generate
+    return load, generate, make_sampler
 
 
 def _iter_jsonl(path: Path):
@@ -36,6 +37,7 @@ def _chat_prompt(tokenizer, prompt: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="mlx-community/Qwen3-4B-Instruct-2507-4bit")
+    parser.add_argument("--adapter-path")
     parser.add_argument("--input", required=True, help="Prompt pack JSONL from build_spider_prompt_pack.py")
     parser.add_argument("--out", required=True)
     parser.add_argument("--max-tokens", type=int, default=256)
@@ -43,8 +45,9 @@ def main() -> int:
     parser.add_argument("--limit", type=int)
     args = parser.parse_args()
 
-    load, generate = _load_mlx()
-    model, tokenizer = load(args.model)
+    load, generate, make_sampler = _load_mlx()
+    model, tokenizer = load(args.model, adapter_path=args.adapter_path)
+    sampler = make_sampler(args.temperature)
     records = list(_iter_jsonl(Path(args.input)))
     if args.limit is not None:
         records = records[: args.limit]
@@ -59,8 +62,8 @@ def main() -> int:
                 tokenizer,
                 prompt=prompt,
                 max_tokens=args.max_tokens,
-                temp=args.temperature,
                 verbose=False,
+                sampler=sampler,
             ).strip()
             payload = dict(record)
             payload["predicted_sql"] = prediction

@@ -24,6 +24,7 @@ generation/datasets/
 generation/manifests/
 benchmarks/runs/
 experiments/
+external/
 
 # Secrets
 .env
