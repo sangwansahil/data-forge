@@ -24,24 +24,30 @@ def _iter_jsonl(path: Path):
             yield json.loads(line)
 
 
-def _chat_prompt(tokenizer, prompt: str) -> str:
+def _chat_prompt(tokenizer, prompt: str, *, prompt_style: str) -> str:
+    system_prompts = {
+        "legacy": "You are an expert Text-to-SQL model. Return correct, executable SQLite SQL only.",
+        "hardened": "You are an expert Text-to-SQL model. Return exactly one executable SQLite query. Do not think out loud or explain.",
+    }
     messages = [
         {
             "role": "system",
-            "content": "You are an expert Text-to-SQL model. Return exactly one executable SQLite query. Do not think out loud or explain.",
+            "content": system_prompts[prompt_style],
         },
         {"role": "user", "content": prompt},
     ]
     if hasattr(tokenizer, "apply_chat_template"):
-        try:
-            return tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True,
-                enable_thinking=False,
-            )
-        except TypeError:
-            return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        if prompt_style == "hardened":
+            try:
+                return tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=False,
+                    add_generation_prompt=True,
+                    enable_thinking=False,
+                )
+            except TypeError:
+                pass
+        return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     return messages[0]["content"] + "\n\n" + messages[1]["content"] + "\n"
 
 
@@ -54,6 +60,7 @@ def main() -> int:
     parser.add_argument("--max-tokens", type=int, default=256)
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--prompt-style", choices=["legacy", "hardened"], default="hardened")
     args = parser.parse_args()
 
     load, generate, make_sampler = _load_mlx()
@@ -67,7 +74,7 @@ def main() -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w") as handle:
         for index, record in enumerate(records, start=1):
-            prompt = _chat_prompt(tokenizer, record["prompt"])
+            prompt = _chat_prompt(tokenizer, record["prompt"], prompt_style=args.prompt_style)
             prediction = generate(
                 model,
                 tokenizer,

@@ -43,6 +43,16 @@ class TextToSqlEvalTests(unittest.TestCase):
         prediction = "The query should be:\nSELECT 0;\n</think>\n\nSELECT COUNT(*) FROM orders;"
         self.assertEqual(extract_sql(prediction), "SELECT COUNT(*) FROM orders")
 
+    def test_extract_sql_preserves_outer_query_with_subselect(self) -> None:
+        prediction = (
+            "SELECT customer FROM orders "
+            "WHERE amount > (SELECT AVG(amount) FROM orders);"
+        )
+        self.assertEqual(
+            extract_sql(prediction),
+            "SELECT customer FROM orders WHERE amount > (SELECT AVG(amount) FROM orders)",
+        )
+
     def test_evaluate_prediction_records_matches_execution_results(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             database_dir = self._make_db(Path(tmp))

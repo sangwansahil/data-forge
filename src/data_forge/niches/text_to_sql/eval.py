@@ -136,9 +136,9 @@ def extract_sql(text: str) -> str:
     fenced = SQL_FENCE.search(stripped)
     if fenced:
         stripped = fenced.group(1).strip()
-    starts = list(SQL_START.finditer(stripped))
-    if starts:
-        stripped = stripped[starts[-1].start() :].strip()
+    start = SQL_START.search(stripped)
+    if start:
+        stripped = stripped[start.start() :].strip()
         stop = SQL_STOP.search(stripped)
         if stop and stop.start() > 0:
             stripped = stripped[: stop.start()].strip()
