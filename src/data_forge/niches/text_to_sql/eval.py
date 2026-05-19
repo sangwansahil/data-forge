@@ -125,13 +125,26 @@ def spider_examples_to_prompt_records(
 
 
 SQL_FENCE = re.compile(r"```(?:sql)?\s*(.*?)```", re.IGNORECASE | re.DOTALL)
+SQL_START = re.compile(r"\b(?:WITH|SELECT|INSERT|UPDATE|DELETE)\b", re.IGNORECASE)
+SQL_STOP = re.compile(r"(?:</?think>|\n\s*(?:The|This|Explanation|Note|Let|We)\b|```)", re.IGNORECASE)
 
 
 def extract_sql(text: str) -> str:
     stripped = text.strip()
+    if "</think>" in stripped:
+        stripped = stripped.split("</think>")[-1].strip()
     fenced = SQL_FENCE.search(stripped)
     if fenced:
         stripped = fenced.group(1).strip()
+    starts = list(SQL_START.finditer(stripped))
+    if starts:
+        stripped = stripped[starts[-1].start() :].strip()
+        stop = SQL_STOP.search(stripped)
+        if stop and stop.start() > 0:
+            stripped = stripped[: stop.start()].strip()
+        statement_end = stripped.find(";")
+        if statement_end >= 0:
+            stripped = stripped[:statement_end].strip()
     lines = []
     for line in stripped.splitlines():
         cleaned = line.strip()

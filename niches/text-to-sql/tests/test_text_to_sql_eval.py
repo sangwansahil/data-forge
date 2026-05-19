@@ -39,6 +39,10 @@ class TextToSqlEvalTests(unittest.TestCase):
     def test_extract_sql_removes_fences(self) -> None:
         self.assertEqual(extract_sql("```sql\nSELECT 1;\n```"), "SELECT 1")
 
+    def test_extract_sql_removes_thinking_trace(self) -> None:
+        prediction = "The query should be:\nSELECT 0;\n</think>\n\nSELECT COUNT(*) FROM orders;"
+        self.assertEqual(extract_sql(prediction), "SELECT COUNT(*) FROM orders")
+
     def test_evaluate_prediction_records_matches_execution_results(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             database_dir = self._make_db(Path(tmp))

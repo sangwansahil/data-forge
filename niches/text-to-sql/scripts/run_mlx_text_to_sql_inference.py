@@ -26,11 +26,22 @@ def _iter_jsonl(path: Path):
 
 def _chat_prompt(tokenizer, prompt: str) -> str:
     messages = [
-        {"role": "system", "content": "You are an expert Text-to-SQL model. Return correct, executable SQLite SQL only."},
+        {
+            "role": "system",
+            "content": "You are an expert Text-to-SQL model. Return exactly one executable SQLite query. Do not think out loud or explain.",
+        },
         {"role": "user", "content": prompt},
     ]
     if hasattr(tokenizer, "apply_chat_template"):
-        return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        try:
+            return tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=False,
+            )
+        except TypeError:
+            return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     return messages[0]["content"] + "\n\n" + messages[1]["content"] + "\n"
 
 
