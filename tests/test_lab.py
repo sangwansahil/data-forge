@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -119,6 +120,13 @@ class LabRunCardTests(unittest.TestCase):
                 ).exists()
             )
             self.assertTrue((root / "runs" / run_id / "artifacts/tool_calling/promotion_decision.json").exists())
+            package_path = root / "runs" / run_id / "artifacts/tool_calling/checkpoint_package.tar.gz"
+            self.assertTrue(package_path.exists())
+            with tarfile.open(package_path, "r:gz") as tar:
+                names = set(tar.getnames())
+            self.assertIn("checkpoint_package_manifest.json", names)
+            self.assertIn("lab_run_snapshot.json", names)
+            self.assertIn("checkpoints/candidate_0001/checkpoint_manifest.json", names)
 
 
 if __name__ == "__main__":

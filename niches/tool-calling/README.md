@@ -13,6 +13,8 @@ The public benchmark target is BFCL-style function calling. The current implemen
 
 The Lab runner can continue through dataset signoff, training handoff, eval contract, diagnosis, and promotion decision. The default training backend is `dry-run`, which creates a checkpoint manifest but not model weights.
 
+Completed runs also create `checkpoint_package.tar.gz`. That package is the portable handoff for local save or future Hugging Face upload.
+
 ## Current Commands
 
 Evaluate a JSONL prediction file:

@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import tarfile
+from io import BytesIO
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -232,6 +234,55 @@ def _load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text())
 
 
+def _add_json_to_tar(tar: tarfile.TarFile, arcname: str, payload: dict[str, Any]) -> None:
+    content = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
+    info = tarfile.TarInfo(arcname)
+    info.size = len(content)
+    tar.addfile(info, BytesIO(content))
+
+
+def _write_checkpoint_package(
+    *,
+    project_root: Path,
+    data_dir: Path,
+    envelope: LabRunEnvelope,
+    promotion_path: Path,
+) -> tuple[Path, Path]:
+    checkpoint_dir = data_dir / "checkpoints" / "candidate_0001"
+    package_path = data_dir / "checkpoint_package.tar.gz"
+    package_manifest_path = data_dir / "checkpoint_package_manifest.json"
+    files = [
+        checkpoint_dir / "checkpoint_manifest.json",
+        checkpoint_dir / "README.md",
+        data_dir / "training_manifest.json",
+        data_dir / "candidate_eval_report.json",
+        data_dir / "diagnosis.json",
+        promotion_path,
+    ]
+    package_manifest = {
+        "package_type": "data_forge_lab_checkpoint",
+        "run_id": envelope.run.run_id,
+        "task_type": envelope.run.task_type,
+        "benchmark": envelope.run.benchmark,
+        "created_at": utc_now(),
+        "checkpoint_dir": str(checkpoint_dir.relative_to(project_root)),
+        "package_path": str(package_path.relative_to(project_root)),
+        "files": [str(path.relative_to(project_root)) for path in files],
+        "huggingface_upload": {
+            "enabled": False,
+            "reason": "dry-run checkpoint contract has no model weights to publish",
+        },
+    }
+    _write_json(package_manifest_path, package_manifest)
+
+    with tarfile.open(package_path, "w:gz") as tar:
+        for path in files:
+            tar.add(path, arcname=str(path.relative_to(data_dir)))
+        tar.add(package_manifest_path, arcname="checkpoint_package_manifest.json")
+        _add_json_to_tar(tar, "lab_run_snapshot.json", envelope.to_dict())
+    return package_path, package_manifest_path
+
+
 def _run_tool_calling_train(project_root: Path, run_dir: Path, envelope: LabRunEnvelope) -> LabRunEnvelope:
     data_dir = _tool_calling_dir(run_dir)
     seed_rows_path = data_dir / "seed_rows.jsonl"
@@ -420,6 +471,12 @@ def _run_tool_calling_promote(project_root: Path, run_dir: Path, envelope: LabRu
     }
     promotion_path = data_dir / "promotion_decision.json"
     _write_json(promotion_path, promotion)
+    package_path, package_manifest_path = _write_checkpoint_package(
+        project_root=project_root,
+        data_dir=data_dir,
+        envelope=envelope,
+        promotion_path=promotion_path,
+    )
 
     step = _current_step(envelope)
     completed = replace(
@@ -439,7 +496,11 @@ def _run_tool_calling_promote(project_root: Path, run_dir: Path, envelope: LabRu
     run = _replace_step(envelope.run, step.step_id, completed)
     run = _append_artifacts(
         run,
-        [Artifact("Promotion decision", str(promotion_path.relative_to(project_root)), "report")],
+        [
+            Artifact("Promotion decision", str(promotion_path.relative_to(project_root)), "report"),
+            Artifact("Checkpoint package", str(package_path.relative_to(project_root)), "checkpoint"),
+            Artifact("Checkpoint package manifest", str(package_manifest_path.relative_to(project_root)), "report"),
+        ],
     )
     run = _replace_headline_metrics(
         run,

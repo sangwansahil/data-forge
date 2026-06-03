@@ -154,6 +154,15 @@ export DATA_FORGE_LAB_TRAIN_BACKEND=dry-run
 
 `dry-run` creates a checkpoint handoff manifest and local checkpoint directory, but it does not create model weights or claim model improvement. Promotion stays locked until a real backend writes weights and beats the baseline on the locked eval.
 
+At promotion time the Lab also writes:
+
+```text
+checkpoint_package.tar.gz
+checkpoint_package_manifest.json
+```
+
+The package is the user-facing handoff artifact. In dry-run mode it contains manifests, eval reports, diagnosis, promotion decision, and the run snapshot. With a real backend, the same package should include adapter/model weights.
+
 The intended backend adapters are:
 
 - `mlx`: local Apple Silicon LoRA.

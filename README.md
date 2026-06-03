@@ -112,6 +112,8 @@ The default Lab training backend is `dry-run`. It creates checkpoint handoff man
 export DATA_FORGE_LAB_TRAIN_BACKEND=dry-run
 ```
 
+Completed Lab runs produce a downloadable `checkpoint_package.tar.gz` artifact. In dry-run mode the package contains manifests and reports; real training backends should add adapter or model weights to the same package.
+
 For a hosted/user-facing Lab deployment, use Supabase for run state:
 
 ```bash

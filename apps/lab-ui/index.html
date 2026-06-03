@@ -8,63 +8,59 @@
   </head>
   <body>
     <main class="shell">
-      <section class="topbar" aria-label="Data Forge Lab header">
-        <div>
-          <p class="eyebrow">Data Forge Lab</p>
-          <h1>Small-model fine-tuning agent</h1>
-        </div>
-        <div class="status-pill" id="runStatus">ready</div>
-      </section>
-
-      <section class="composer" aria-label="Lab prompt">
-        <label for="promptInput">Prompt</label>
-        <div class="prompt-row">
-          <input id="promptInput" value="fine tune a 4B model for text-to-sql" />
-          <button id="startButton">Forge run</button>
-        </div>
-      </section>
-
-      <section class="hero-grid" aria-label="Run overview">
-        <div class="run-brief">
-          <p class="eyebrow">active proof</p>
-          <h2 id="runTitle">Text-to-SQL Small Model Lab</h2>
-          <p id="runThesis"></p>
-        </div>
-        <div class="metric-strip" id="headlineMetrics"></div>
-      </section>
-
-      <section class="workspace">
-        <aside class="side-panel" aria-label="Model and artifacts">
-          <div>
-            <p class="panel-label">model router</p>
-            <div id="modelCandidates" class="model-list"></div>
+      <section class="landing-view" id="landingView" aria-label="Start a Data Forge Lab run">
+        <form class="prompt-box" id="promptForm">
+          <textarea
+            id="promptInput"
+            rows="1"
+            spellcheck="true"
+            placeholder="Fine-tune a small model for..."
+          ></textarea>
+          <div class="prompt-actions">
+            <button class="send-button" id="startButton" type="submit" aria-label="Start run">↑</button>
           </div>
-          <div>
-            <p class="panel-label">artifacts</p>
-            <div id="artifactList" class="artifact-list"></div>
-          </div>
-        </aside>
+        </form>
+      </section>
 
-        <section class="timeline" aria-label="Agent timeline">
-          <div class="timeline-head">
+      <section class="run-view hidden" id="runView" aria-label="Data Forge Lab run">
+        <header class="run-header">
+          <div>
+            <p class="kicker" id="runTaskType">Data Forge Lab</p>
+            <h1 id="runTitle">Run</h1>
+          </div>
+          <div class="run-status">
+            <span id="loopCount">0/0</span>
+            <span id="runStatus">ready</span>
+          </div>
+        </header>
+
+        <section class="focus-stage" aria-label="Current agent step">
+          <div class="focus-copy">
+            <div class="step-marker" id="activeStepMarker"></div>
             <div>
-              <p class="panel-label">closed loop</p>
-              <h2>Plan → baseline → data → train → eval → diagnose → promote</h2>
-            </div>
-            <div class="timeline-actions">
-              <button class="secondary" id="runNextButton" disabled>Run next step</button>
-              <div class="loop-meter">
-                <span id="loopCount">0/0</span>
-              </div>
+              <p class="kicker" id="activeAgent">Agent</p>
+              <h2 id="activeTitle">Waiting</h2>
+              <p id="activeSummary"></p>
             </div>
           </div>
-          <div id="steps"></div>
+          <div class="focus-metrics" id="activeMetrics"></div>
+          <div class="approval-block hidden" id="approvalBlock"></div>
+          <div class="focus-actions">
+            <button class="secondary-action" id="backButton" type="button">New prompt</button>
+            <button class="primary-action" id="runNextButton" type="button" disabled>Run next step</button>
+          </div>
         </section>
-      </section>
 
-      <section class="next-loop" aria-label="Next improvement loop">
-        <p class="panel-label">next loop</p>
-        <div id="nextLoop"></div>
+        <section class="plan-shell" aria-label="Agent plan">
+          <ol class="plan-list" id="steps"></ol>
+        </section>
+
+        <section class="evidence-dock hidden" id="evidenceDock" aria-label="Current artifacts">
+          <div>
+            <p class="kicker">Evidence</p>
+            <div id="artifactList"></div>
+          </div>
+        </section>
       </section>
     </main>
 

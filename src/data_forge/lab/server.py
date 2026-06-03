@@ -32,7 +32,7 @@ class LabRequestHandler(SimpleHTTPRequestHandler):
             return {}
         return json.loads(self.rfile.read(length).decode("utf-8"))
 
-    def _serve_artifact(self, relative_path: str) -> None:
+    def _serve_artifact(self, relative_path: str, *, include_body: bool = True) -> None:
         target = (self.project_root / relative_path).resolve()
         allowed_roots = [
             (self.project_root / "generation/lab").resolve(),
@@ -49,8 +49,11 @@ class LabRequestHandler(SimpleHTTPRequestHandler):
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(content)))
+        if target.name.endswith(".tar.gz"):
+            self.send_header("Content-Disposition", f'attachment; filename="{target.name}"')
         self.end_headers()
-        self.wfile.write(content)
+        if include_body:
+            self.wfile.write(content)
 
     def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
         path = urlparse(self.path).path
@@ -71,6 +74,13 @@ class LabRequestHandler(SimpleHTTPRequestHandler):
                 self._json_response({"error": "run not found", "run_id": run_id}, HTTPStatus.NOT_FOUND)
             return
         super().do_GET()
+
+    def do_HEAD(self) -> None:  # noqa: N802 - stdlib handler API
+        path = urlparse(self.path).path
+        if path.startswith("/artifacts/"):
+            self._serve_artifact(unquote(path.removeprefix("/artifacts/")).strip("/"), include_body=False)
+            return
+        super().do_HEAD()
 
     def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
         path = urlparse(self.path).path
