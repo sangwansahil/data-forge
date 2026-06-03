@@ -66,6 +66,22 @@ def advance_envelope(envelope: LabRunEnvelope) -> None:
         envelope.current_step_index += 1
 
 
+def step_satisfied(envelope: LabRunEnvelope, index: int) -> bool:
+    step = envelope.run.steps[index]
+    if step.status == "complete":
+        return True
+    return bool(step.approval and step.approval.gate_id in envelope.approved_gates)
+
+
+def refresh_run_status(envelope: LabRunEnvelope) -> None:
+    steps = envelope.run.steps
+    if steps and all(step_satisfied(envelope, index) for index in range(len(steps))):
+        envelope.run = replace(envelope.run, status="complete")
+        return
+    if any(step.status == "failed" for step in steps):
+        envelope.run = replace(envelope.run, status="failed")
+
+
 class LabRunStore:
     def __init__(self, root: Path) -> None:
         self.root = root
@@ -113,12 +129,14 @@ class LabRunStore:
         envelope.approved_gates[gate_id] = choice
         envelope.events.append({"type": "approved", "at": utc_now(), "gate_id": gate_id, "choice": choice})
         advance_envelope(envelope)
+        refresh_run_status(envelope)
         self.save(envelope)
         return envelope
 
     def advance(self, run_id: str) -> LabRunEnvelope:
         envelope = self.get(run_id)
         advance_envelope(envelope)
+        refresh_run_status(envelope)
         envelope.events.append({"type": "advanced", "at": utc_now(), "step_index": envelope.current_step_index})
         self.save(envelope)
         return envelope
@@ -135,6 +153,7 @@ class LabRunStore:
             envelope=envelope,
         )
         advance_envelope(envelope)
+        refresh_run_status(envelope)
         envelope.events.append({"type": "runner_advanced", "at": utc_now(), "step_index": envelope.current_step_index})
         self.save(envelope)
         return envelope

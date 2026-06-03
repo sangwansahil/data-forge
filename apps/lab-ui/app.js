@@ -93,7 +93,7 @@ function renderArtifacts(artifacts) {
   $("artifactList").innerHTML = artifacts
     .map((artifact) => {
       const external = artifact.uri.startsWith("http");
-      const href = external ? artifact.uri : `../../${artifact.uri}`;
+      const href = external ? artifact.uri : state.live ? `/artifacts/${artifact.uri}` : `../../${artifact.uri}`;
       return `
         <a class="artifact-row" href="${href}" ${external ? 'target="_blank" rel="noreferrer"' : ""}>
           <strong>${artifact.label}</strong>

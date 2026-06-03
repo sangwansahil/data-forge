@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import mimetypes
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -31,10 +32,33 @@ class LabRequestHandler(SimpleHTTPRequestHandler):
             return {}
         return json.loads(self.rfile.read(length).decode("utf-8"))
 
+    def _serve_artifact(self, relative_path: str) -> None:
+        target = (self.project_root / relative_path).resolve()
+        allowed_roots = [
+            (self.project_root / "generation/lab").resolve(),
+            (self.project_root / "generation/niches").resolve(),
+        ]
+        if not any(target == root or root in target.parents for root in allowed_roots):
+            self._json_response({"error": "artifact path not allowed"}, HTTPStatus.FORBIDDEN)
+            return
+        if not target.is_file():
+            self._json_response({"error": "artifact not found"}, HTTPStatus.NOT_FOUND)
+            return
+        content = target.read_bytes()
+        content_type = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(content)))
+        self.end_headers()
+        self.wfile.write(content)
+
     def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
         path = urlparse(self.path).path
         if path == "/api/health":
             self._json_response({"ok": True, "service": "data-forge-lab"})
+            return
+        if path.startswith("/artifacts/"):
+            self._serve_artifact(unquote(path.removeprefix("/artifacts/")).strip("/"))
             return
         if path == "/api/runs":
             self._json_response({"runs": [envelope.to_dict() for envelope in self.store.list()]})

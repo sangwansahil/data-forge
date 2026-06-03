@@ -12,7 +12,7 @@ from urllib.request import Request, urlopen
 
 from data_forge.lab.executor import run_current_step
 from data_forge.lab.planner import plan_lab_run
-from data_forge.lab.state import LabRunEnvelope, advance_envelope, utc_now
+from data_forge.lab.state import LabRunEnvelope, advance_envelope, refresh_run_status, utc_now
 
 
 class SupabaseLabRunStore:
@@ -151,12 +151,14 @@ class SupabaseLabRunStore:
         envelope.approved_gates[gate_id] = choice
         envelope.events.append({"type": "approved", "at": utc_now(), "gate_id": gate_id, "choice": choice})
         advance_envelope(envelope)
+        refresh_run_status(envelope)
         self.save(envelope)
         return envelope
 
     def advance(self, run_id: str) -> LabRunEnvelope:
         envelope = self.get(run_id)
         advance_envelope(envelope)
+        refresh_run_status(envelope)
         envelope.events.append({"type": "advanced", "at": utc_now(), "step_index": envelope.current_step_index})
         self.save(envelope)
         return envelope
@@ -171,6 +173,7 @@ class SupabaseLabRunStore:
             envelope=envelope,
         )
         advance_envelope(envelope)
+        refresh_run_status(envelope)
         envelope.events.append({"type": "runner_advanced", "at": utc_now(), "step_index": envelope.current_step_index})
         self.save(envelope)
         return envelope

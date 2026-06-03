@@ -106,6 +106,12 @@ python3 -m data_forge.cli lab plan "fine tune a small model for tool calling"
 python3 -m data_forge.cli lab run-next <run_id>
 ```
 
+The default Lab training backend is `dry-run`. It creates checkpoint handoff manifests and local artifacts so the UI can exercise the closed loop, but it does not create model weights or claim model improvement:
+
+```bash
+export DATA_FORGE_LAB_TRAIN_BACKEND=dry-run
+```
+
 For a hosted/user-facing Lab deployment, use Supabase for run state:
 
 ```bash

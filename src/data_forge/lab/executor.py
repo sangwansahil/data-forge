@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from dataclasses import replace
 from pathlib import Path
@@ -223,6 +224,234 @@ def _run_tool_calling_forge(project_root: Path, run_dir: Path, envelope: LabRunE
     return envelope
 
 
+def _tool_calling_dir(run_dir: Path) -> Path:
+    return run_dir / "tool_calling"
+
+
+def _load_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text())
+
+
+def _run_tool_calling_train(project_root: Path, run_dir: Path, envelope: LabRunEnvelope) -> LabRunEnvelope:
+    data_dir = _tool_calling_dir(run_dir)
+    seed_rows_path = data_dir / "seed_rows.jsonl"
+    if not seed_rows_path.exists():
+        raise ValueError("seed rows are required before training")
+    rows = _read_jsonl(seed_rows_path)
+    accepted_rows = [row for row in rows if row.get("status") == "accepted"]
+    checkpoint_dir = data_dir / "checkpoints" / "candidate_0001"
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    backend = os.environ.get("DATA_FORGE_LAB_TRAIN_BACKEND", "dry-run")
+    base_model = envelope.run.model_candidates[0].model_id if envelope.run.model_candidates else "bring-your-own-model"
+    manifest = {
+        "checkpoint_id": f"{envelope.run.run_id}_candidate_0001",
+        "status": "dry_run_contract",
+        "backend": backend,
+        "base_model": base_model,
+        "task_type": envelope.run.task_type,
+        "training_rows": len(accepted_rows),
+        "source_dataset": str(seed_rows_path.relative_to(project_root)),
+        "created_at": utc_now(),
+        "save_targets": ["local", "huggingface"],
+        "notes": [
+            "This MVP writes a checkpoint handoff contract, not model weights.",
+            "A real backend adapter must replace dry-run before promotion can claim model improvement.",
+        ],
+    }
+    training_manifest_path = data_dir / "training_manifest.json"
+    checkpoint_manifest_path = checkpoint_dir / "checkpoint_manifest.json"
+    checkpoint_readme_path = checkpoint_dir / "README.md"
+    _write_json(training_manifest_path, manifest)
+    _write_json(checkpoint_manifest_path, manifest)
+    checkpoint_readme_path.write_text(
+        "\n".join(
+            [
+                "# Data Forge Lab checkpoint handoff",
+                "",
+                "This directory is a model-agnostic checkpoint contract for the Lab runner.",
+                "It is intentionally marked `dry_run_contract` until a real training backend writes weights.",
+                "",
+                f"- Base model: `{base_model}`",
+                f"- Backend: `{backend}`",
+                f"- Training rows: `{len(accepted_rows)}`",
+                "",
+            ]
+        )
+    )
+
+    step = _current_step(envelope)
+    completed = replace(
+        step,
+        status="complete",
+        summary="Prepared a model-agnostic checkpoint handoff contract for the selected training backend.",
+        details=[
+            "The dry-run backend proves artifact plumbing without fabricating model weights.",
+            "Real backends will write adapter weights into the same checkpoint contract.",
+        ],
+        metrics=[
+            LabMetric("Backend", backend),
+            LabMetric("Rows", str(len(accepted_rows))),
+            LabMetric("Checkpoint", "contract"),
+            LabMetric("Save targets", "local + HF"),
+        ],
+    )
+    run = _replace_step(envelope.run, step.step_id, completed)
+    run = _append_artifacts(
+        run,
+        [
+            Artifact("Training manifest", str(training_manifest_path.relative_to(project_root)), "report"),
+            Artifact("Checkpoint contract", str(checkpoint_manifest_path.relative_to(project_root)), "checkpoint"),
+        ],
+    )
+    run = _replace_headline_metrics(
+        run,
+        {
+            "Fine-tune": LabMetric(
+                "Fine-tune",
+                "contract",
+                "dry-run backend; weights not generated",
+                tone="warn",
+            )
+        },
+    )
+    envelope.run = run
+    envelope.events.append({"type": "step_completed", "at": utc_now(), "step_id": step.step_id})
+    return envelope
+
+
+def _run_tool_calling_eval(project_root: Path, run_dir: Path, envelope: LabRunEnvelope) -> LabRunEnvelope:
+    data_dir = _tool_calling_dir(run_dir)
+    baseline_report_path = data_dir / "baseline_report.json"
+    checkpoint_manifest_path = data_dir / "checkpoints" / "candidate_0001" / "checkpoint_manifest.json"
+    if not baseline_report_path.exists() or not checkpoint_manifest_path.exists():
+        raise ValueError("baseline report and checkpoint manifest are required before eval")
+    baseline = _load_json(baseline_report_path)
+    checkpoint = _load_json(checkpoint_manifest_path)
+    report = {
+        "benchmark": envelope.run.benchmark,
+        "metric": envelope.run.target_metric,
+        "sample_count": baseline["total"],
+        "baseline_exact_accuracy": baseline["exact_accuracy"],
+        "candidate_exact_accuracy": None,
+        "candidate_status": checkpoint["status"],
+        "promotion_ready": False,
+        "reason": "dry-run checkpoint contract has no model weights to evaluate",
+        "created_at": utc_now(),
+    }
+    report_path = data_dir / "candidate_eval_report.json"
+    _write_json(report_path, report)
+
+    step = _current_step(envelope)
+    completed = replace(
+        step,
+        status="complete",
+        summary="Recorded the eval contract and blocked metric claims until a real checkpoint exists.",
+        details=[
+            "The Lab keeps the baseline metric visible.",
+            "No candidate accuracy is claimed for a dry-run checkpoint.",
+        ],
+        metrics=[
+            LabMetric("Baseline", f"{baseline['exact_accuracy'] * 100:.2f}%"),
+            LabMetric("Candidate", "not run", tone="warn"),
+            LabMetric("Samples", str(baseline["total"])),
+            LabMetric("Promotion", "blocked", tone="warn"),
+        ],
+    )
+    run = _replace_step(envelope.run, step.step_id, completed)
+    run = _append_artifacts(run, [Artifact("Candidate eval report", str(report_path.relative_to(project_root)), "report")])
+    envelope.run = run
+    envelope.events.append({"type": "step_completed", "at": utc_now(), "step_id": step.step_id})
+    return envelope
+
+
+def _run_tool_calling_diagnose(project_root: Path, run_dir: Path, envelope: LabRunEnvelope) -> LabRunEnvelope:
+    data_dir = _tool_calling_dir(run_dir)
+    quality_path = data_dir / "quality_report.json"
+    eval_path = data_dir / "candidate_eval_report.json"
+    quality = _load_json(quality_path)
+    eval_report = _load_json(eval_path)
+    diagnosis = {
+        "status": "next_loop_ready",
+        "top_findings": [
+            "Replace dry-run backend with MLX or Transformers adapter execution.",
+            "Expand BFCL-style locked eval before spending generator budget.",
+            "Add rejected-row review UI so humans can inspect failure modes before training.",
+        ],
+        "quality_signal": quality,
+        "eval_signal": eval_report,
+        "created_at": utc_now(),
+    }
+    diagnosis_path = data_dir / "diagnosis.json"
+    _write_json(diagnosis_path, diagnosis)
+
+    step = _current_step(envelope)
+    completed = replace(
+        step,
+        status="complete",
+        summary="Converted the current run state into the next implementation loop.",
+        metrics=[
+            LabMetric("Findings", str(len(diagnosis["top_findings"]))),
+            LabMetric("Next loop", "backend adapter"),
+            LabMetric("Risk", "no weights yet", tone="warn"),
+        ],
+    )
+    run = _replace_step(envelope.run, step.step_id, completed)
+    run = _append_artifacts(run, [Artifact("Diagnosis report", str(diagnosis_path.relative_to(project_root)), "report")])
+    envelope.run = run
+    envelope.events.append({"type": "step_completed", "at": utc_now(), "step_id": step.step_id})
+    return envelope
+
+
+def _run_tool_calling_promote(project_root: Path, run_dir: Path, envelope: LabRunEnvelope) -> LabRunEnvelope:
+    data_dir = _tool_calling_dir(run_dir)
+    eval_report = _load_json(data_dir / "candidate_eval_report.json")
+    promotion = {
+        "decision": "do_not_promote",
+        "reason": eval_report["reason"],
+        "can_save_local": True,
+        "can_push_huggingface": False,
+        "checkpoint_uri": str((data_dir / "checkpoints" / "candidate_0001").relative_to(project_root)),
+        "created_at": utc_now(),
+        "requirements_to_promote": [
+            "A real backend writes adapter/model weights.",
+            "Candidate beats baseline on the locked eval.",
+            "Regression checks pass.",
+        ],
+    }
+    promotion_path = data_dir / "promotion_decision.json"
+    _write_json(promotion_path, promotion)
+
+    step = _current_step(envelope)
+    completed = replace(
+        step,
+        status="complete",
+        summary="Saved the checkpoint contract locally and withheld promotion because no real weights exist yet.",
+        details=[
+            "The Lab can hand off local artifacts now.",
+            "Hugging Face publishing remains disabled until a real checkpoint passes eval.",
+        ],
+        metrics=[
+            LabMetric("Decision", "no promote", tone="warn"),
+            LabMetric("Local save", "ready", tone="good"),
+            LabMetric("HF push", "locked", tone="warn"),
+        ],
+    )
+    run = _replace_step(envelope.run, step.step_id, completed)
+    run = _append_artifacts(
+        run,
+        [Artifact("Promotion decision", str(promotion_path.relative_to(project_root)), "report")],
+    )
+    run = _replace_headline_metrics(
+        run,
+        {
+            "Promotion": LabMetric("Promotion", "locked", "needs real checkpoint eval", tone="warn"),
+        },
+    )
+    envelope.run = run
+    envelope.events.append({"type": "step_completed", "at": utc_now(), "step_id": step.step_id})
+    return envelope
+
+
 def run_current_step(*, project_root: Path, run_dir: Path, envelope: LabRunEnvelope) -> LabRunEnvelope:
     step = _current_step(envelope)
     if step.approval and step.approval.gate_id not in envelope.approved_gates:
@@ -233,6 +462,14 @@ def run_current_step(*, project_root: Path, run_dir: Path, envelope: LabRunEnvel
         return _run_tool_calling_baseline(project_root, run_dir, envelope)
     if envelope.run.task_type == "Tool calling" and step.step_id == "forge":
         return _run_tool_calling_forge(project_root, run_dir, envelope)
+    if envelope.run.task_type == "Tool calling" and step.step_id == "train":
+        return _run_tool_calling_train(project_root, run_dir, envelope)
+    if envelope.run.task_type == "Tool calling" and step.step_id == "eval":
+        return _run_tool_calling_eval(project_root, run_dir, envelope)
+    if envelope.run.task_type == "Tool calling" and step.step_id == "diagnose":
+        return _run_tool_calling_diagnose(project_root, run_dir, envelope)
+    if envelope.run.task_type == "Tool calling" and step.step_id == "promote":
+        return _run_tool_calling_promote(project_root, run_dir, envelope)
     blocked = replace(
         step,
         status="blocked",

@@ -101,6 +101,25 @@ class LabRunCardTests(unittest.TestCase):
             self.assertEqual(envelope.current_step_index, 6)
             self.assertTrue((root / "runs" / run_id / "artifacts/tool_calling/seed_rows.jsonl").exists())
 
+            envelope = store.approve(run_id, "dataset_signoff")
+            self.assertEqual(envelope.current_step_index, 7)
+
+            for expected_step in ["train", "eval", "diagnose", "promote"]:
+                self.assertEqual(envelope.run.steps[envelope.current_step_index - 1].step_id, expected_step)
+                envelope = store.run_next(run_id, project_root=root)
+
+            self.assertEqual(envelope.run.status, "complete")
+            self.assertEqual(envelope.current_step_index, 10)
+            self.assertTrue(
+                (
+                    root
+                    / "runs"
+                    / run_id
+                    / "artifacts/tool_calling/checkpoints/candidate_0001/checkpoint_manifest.json"
+                ).exists()
+            )
+            self.assertTrue((root / "runs" / run_id / "artifacts/tool_calling/promotion_decision.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

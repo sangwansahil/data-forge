@@ -123,6 +123,7 @@ GET  /api/runs/{run_id}
 POST /api/runs/{run_id}/approve
 POST /api/runs/{run_id}/advance
 POST /api/runs/{run_id}/run-next
+GET  /artifacts/{generated-artifact-path}
 ```
 
 Runs are saved under:
@@ -140,6 +141,25 @@ PYTHONPATH=src python3 -m data_forge.cli lab run-next <run_id>
 ```
 
 Set `DATA_FORGE_LAB_STORE=supabase` for hosted run state. The browser still talks to the Lab API; the server writes run snapshots, events, and artifact metadata to Supabase using server-only credentials. See `docs/supabase_lab_storage.md`.
+
+## Training Backend Contract
+
+The Lab runner is backend-agnostic. It routes training through `DATA_FORGE_LAB_TRAIN_BACKEND`.
+
+The current default is:
+
+```bash
+export DATA_FORGE_LAB_TRAIN_BACKEND=dry-run
+```
+
+`dry-run` creates a checkpoint handoff manifest and local checkpoint directory, but it does not create model weights or claim model improvement. Promotion stays locked until a real backend writes weights and beats the baseline on the locked eval.
+
+The intended backend adapters are:
+
+- `mlx`: local Apple Silicon LoRA.
+- `transformers`: local or Colab Hugging Face training.
+- `hf-jobs`: Hugging Face Jobs.
+- `external`: user-provided checkpoint path.
 
 ## Live Harness Roadmap
 
