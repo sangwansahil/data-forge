@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Data Forge Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar" aria-label="Data Forge Lab header">
+        <div>
+          <p class="eyebrow">Data Forge Lab</p>
+          <h1>Small-model fine-tuning agent</h1>
+        </div>
+        <div class="status-pill" id="runStatus">ready</div>
+      </section>
+
+      <section class="composer" aria-label="Lab prompt">
+        <label for="promptInput">Prompt</label>
+        <div class="prompt-row">
+          <input id="promptInput" value="fine tune a 4B model for text-to-sql" />
+          <button id="startButton">Forge run</button>
+        </div>
+      </section>
+
+      <section class="hero-grid" aria-label="Run overview">
+        <div class="run-brief">
+          <p class="eyebrow">active proof</p>
+          <h2 id="runTitle">Text-to-SQL Small Model Lab</h2>
+          <p id="runThesis"></p>
+        </div>
+        <div class="metric-strip" id="headlineMetrics"></div>
+      </section>
+
+      <section class="workspace">
+        <aside class="side-panel" aria-label="Model and artifacts">
+          <div>
+            <p class="panel-label">model router</p>
+            <div id="modelCandidates" class="model-list"></div>
+          </div>
+          <div>
+            <p class="panel-label">artifacts</p>
+            <div id="artifactList" class="artifact-list"></div>
+          </div>
+        </aside>
+
+        <section class="timeline" aria-label="Agent timeline">
+          <div class="timeline-head">
+            <div>
+              <p class="panel-label">closed loop</p>
+              <h2>Plan → baseline → data → train → eval → diagnose → promote</h2>
+            </div>
+            <div class="loop-meter">
+              <span id="loopCount">0/0</span>
+            </div>
+          </div>
+          <div id="steps"></div>
+        </section>
+      </section>
+
+      <section class="next-loop" aria-label="Next improvement loop">
+        <p class="panel-label">next loop</p>
+        <div id="nextLoop"></div>
+      </section>
+    </main>
+
+    <script src="./demo-run.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

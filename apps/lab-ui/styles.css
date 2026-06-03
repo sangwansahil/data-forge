@@ -1,0 +1,427 @@
+:root {
+  color-scheme: dark;
+  --bg: #10100e;
+  --panel: #171713;
+  --panel-2: #1f201b;
+  --line: #34352e;
+  --text: #f0eee6;
+  --muted: #a7a397;
+  --subtle: #777267;
+  --green: #9fd36a;
+  --amber: #f0bc57;
+  --red: #ef6f5f;
+  --blue: #8db6ff;
+  --ink: #0d0d0b;
+  --radius: 8px;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--text);
+  color: var(--ink);
+  cursor: pointer;
+  min-height: 42px;
+  padding: 0 16px;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--text);
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.shell {
+  width: min(1360px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 24px 0 40px;
+}
+
+.topbar,
+.composer,
+.hero-grid,
+.workspace,
+.next-loop {
+  margin-bottom: 16px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
+}
+
+.eyebrow,
+.panel-label {
+  color: var(--subtle);
+  font-size: 11px;
+  letter-spacing: 0;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  font-size: 28px;
+  font-weight: 620;
+  line-height: 1.1;
+  margin-bottom: 0;
+}
+
+h2 {
+  font-size: 18px;
+  font-weight: 620;
+  line-height: 1.25;
+  margin-bottom: 8px;
+}
+
+h3 {
+  font-size: 15px;
+  font-weight: 620;
+  margin-bottom: 6px;
+}
+
+.status-pill,
+.loop-meter,
+.state {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+.composer,
+.run-brief,
+.side-panel,
+.timeline,
+.next-loop {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.composer {
+  padding: 14px;
+}
+
+.composer label {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.prompt-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+input {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0d0d0b;
+  color: var(--text);
+  min-height: 42px;
+  padding: 0 12px;
+  outline: none;
+}
+
+input:focus {
+  border-color: var(--blue);
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(320px, 1.2fr);
+  gap: 16px;
+}
+
+.run-brief {
+  padding: 18px;
+}
+
+.run-brief p:last-child {
+  color: var(--muted);
+  line-height: 1.45;
+  margin-bottom: 0;
+}
+
+.metric-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.metric,
+.model-row,
+.artifact-row,
+.step,
+.next-item {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.metric {
+  min-height: 116px;
+  padding: 14px;
+}
+
+.metric .value {
+  font-size: 28px;
+  font-weight: 640;
+  line-height: 1;
+  margin: 10px 0 8px;
+}
+
+.metric .detail,
+.step p,
+.model-row p,
+.artifact-row p,
+.next-item {
+  color: var(--muted);
+  line-height: 1.42;
+}
+
+.metric.good {
+  border-color: rgba(159, 211, 106, 0.55);
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.side-panel,
+.timeline,
+.next-loop {
+  padding: 14px;
+}
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.model-list,
+.artifact-list,
+#steps,
+#nextLoop {
+  display: grid;
+  gap: 10px;
+}
+
+.model-row,
+.artifact-row {
+  padding: 12px;
+}
+
+.model-row strong,
+.artifact-row strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 5px;
+}
+
+.meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 4px 7px;
+}
+
+.chip.good {
+  color: var(--green);
+}
+
+.timeline-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px;
+}
+
+.step-index {
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--muted);
+  display: flex;
+  font-size: 12px;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.step-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.agent {
+  color: var(--subtle);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.state.complete {
+  border-color: rgba(159, 211, 106, 0.48);
+  color: var(--green);
+}
+
+.state.needs_approval {
+  border-color: rgba(240, 188, 87, 0.5);
+  color: var(--amber);
+}
+
+.state.running {
+  border-color: rgba(141, 182, 255, 0.5);
+  color: var(--blue);
+}
+
+.detail-list {
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.detail-list li {
+  color: var(--muted);
+  list-style: none;
+  margin-bottom: 5px;
+}
+
+.detail-list li::before {
+  color: var(--subtle);
+  content: "- ";
+}
+
+.step-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.mini-metric {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 9px;
+}
+
+.mini-metric span {
+  color: var(--subtle);
+  display: block;
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+
+.mini-metric strong {
+  font-size: 15px;
+}
+
+.approval {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.approval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.next-item {
+  padding: 12px;
+}
+
+@media (max-width: 980px) {
+  .hero-grid,
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-strip,
+  .step-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .shell {
+    width: min(100vw - 20px, 1360px);
+    padding-top: 12px;
+  }
+
+  .prompt-row,
+  .metric-strip,
+  .step-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar,
+  .timeline-head,
+  .step-head {
+    flex-direction: column;
+  }
+}

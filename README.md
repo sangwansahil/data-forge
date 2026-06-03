@@ -14,14 +14,18 @@ This repository is designed to be cloned and adapted for new niches. A niche can
 - Static HTML review packets for human approval without running a server.
 - Signoff enforcement before fine-tuning exports.
 - Testable quality gates instead of trust-based synthetic data.
+- Data Forge Lab: an agentic visual harness for small-model fine-tuning experiments.
 
 ## Repository Layout
 
 ```text
 data-forge/
   docs/                 # Framework-level architecture and storage docs
+  apps/lab-ui/          # Static Data Forge Lab demo console
   niches/               # Domain-specific dataset factories
+  scripts/              # Framework-level helper commands
   src/data_forge/core/  # Reusable storage, scoring, and JSON helpers
+  src/data_forge/lab/   # Agentic lab run cards and orchestration contracts
   src/data_forge/niches # Python implementation for niche packs
   tests/                # Core and niche tests
 ```
@@ -66,6 +70,31 @@ export GOOGLE_APPLICATION_CREDENTIALS_JSON='<raw service account json>'
 ```
 
 See `docs/google_drive_storage.md` for Drive setup.
+
+## Data Forge Lab Demo
+
+Build the current Text-to-SQL proof run card:
+
+```bash
+python3 scripts/build_lab_demo.py
+```
+
+Open the static Lab UI:
+
+```bash
+python3 -m http.server 8765 --directory apps/lab-ui
+```
+
+Then visit `http://localhost:8765`.
+
+The Lab demo shows the intended end product: a clean visual agent console where the user writes a prompt, approves major decisions, watches the closed loop, and receives benchmarked model artifacts.
+
+CLI inspection:
+
+```bash
+python3 -m data_forge.cli lab inspect
+python3 -m data_forge.cli lab demo
+```
 
 ## Core Workflow
 
