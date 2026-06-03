@@ -45,6 +45,8 @@ const state = {
   visibleSteps: 0,
   approved: new Set(),
   running: false,
+  live: false,
+  currentRunId: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -174,7 +176,15 @@ function renderSteps() {
     .join("");
 
   document.querySelectorAll("[data-approve]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
+      if (state.live && state.currentRunId) {
+        const envelope = await api(`/api/runs/${encodeURIComponent(state.currentRunId)}/approve`, {
+          method: "POST",
+          body: JSON.stringify({ gate_id: button.dataset.approve, choice: button.textContent.trim() }),
+        });
+        applyEnvelope(envelope);
+        return;
+      }
       state.approved.add(button.dataset.approve);
       state.running = true;
       if (state.visibleSteps === 0) state.visibleSteps = 1;
@@ -191,12 +201,39 @@ function renderNextLoop(items) {
 function render() {
   $("runTitle").textContent = state.run.title;
   $("runThesis").textContent = state.run.thesis;
-  $("runStatus").textContent = state.running ? "running" : state.run.status;
+  $("runStatus").textContent = state.live ? `live ${state.run.status}` : state.running ? "running" : state.run.status;
+  if (document.activeElement !== $("promptInput")) {
+    $("promptInput").value = state.run.user_prompt || "";
+  }
   renderMetrics(state.run.headline_metrics || []);
   renderModels(state.run.model_candidates || []);
   renderArtifacts(state.run.artifacts || []);
   renderSteps();
   renderNextLoop(state.run.next_loop || []);
+}
+
+function applyEnvelope(envelope) {
+  state.run = envelope.run;
+  state.currentRunId = envelope.run.run_id;
+  state.visibleSteps = envelope.state?.current_step_index ?? Math.min(1, (state.run.steps || []).length);
+  state.approved = new Set(Object.keys(envelope.state?.approved_gates || {}));
+  state.running = state.visibleSteps < (state.run.steps || []).length;
+  render();
+}
+
+async function api(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  return response.json();
 }
 
 function advanceLoop() {
@@ -223,18 +260,42 @@ async function loadRun() {
     state.run = window.DATA_FORGE_DEMO_RUN;
   }
   try {
+    const health = await fetch("/api/health", { cache: "no-store" });
+    if (health.ok) {
+      state.live = true;
+      const runs = await api("/api/runs");
+      const latest = (runs.runs || []).at(-1);
+      if (latest) {
+        applyEnvelope(latest);
+        return;
+      }
+    }
+  } catch {
+    state.live = false;
+  }
+  try {
     const response = await fetch("./demo-run.json", { cache: "no-store" });
     if (response.ok) state.run = await response.json();
   } catch {
     if (!window.DATA_FORGE_DEMO_RUN) state.run = fallbackRun;
   }
   state.visibleSteps = Math.min(1, (state.run.steps || []).length);
+  state.currentRunId = state.run.run_id;
   render();
 }
 
-function startRun() {
+async function startRun() {
   const prompt = $("promptInput").value.trim();
+  if (state.live) {
+    const envelope = await api("/api/runs", {
+      method: "POST",
+      body: JSON.stringify({ prompt: prompt || state.run.user_prompt }),
+    });
+    applyEnvelope(envelope);
+    return;
+  }
   state.run = { ...state.run, user_prompt: prompt || state.run.user_prompt };
+  state.currentRunId = state.run.run_id;
   state.visibleSteps = 1;
   state.approved = new Set();
   state.running = true;

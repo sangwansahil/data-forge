@@ -11,6 +11,8 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from data_forge.lab.planner import plan_lab_run
+from data_forge.lab.state import LabRunStore
 from data_forge.lab.text_to_sql_demo import build_text_to_sql_demo_card
 
 
@@ -42,6 +44,37 @@ class LabRunCardTests(unittest.TestCase):
         self.assertEqual(metrics["Base Qwen3.5-4B"], "40.81%")
         self.assertEqual(metrics["Result-voted system"], "71.47%")
         self.assertEqual(metrics["Improvement"], "+30.66 pts")
+
+    def test_planner_creates_tool_calling_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            card = plan_lab_run("fine tune a small model for tool calling", Path(tmp))
+        self.assertEqual(card.task_type, "Tool calling")
+        self.assertEqual(card.benchmark, "BFCL-style function calling eval")
+        self.assertEqual(card.status, "ready")
+        self.assertEqual(card.mode, "live")
+        self.assertTrue(card.model_candidates)
+
+    def test_lab_run_store_persists_and_advances_approvals(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            store = LabRunStore(root / "runs")
+            envelope = store.create("fine tune a small model for tool calling", project_root=root)
+            self.assertEqual(envelope.current_step_index, 1)
+            self.assertEqual(envelope.run.steps[0].approval.gate_id, "task_interpretation")
+
+            envelope = store.approve(envelope.run.run_id, "task_interpretation")
+            self.assertEqual(envelope.current_step_index, 2)
+            self.assertIn("task_interpretation", envelope.approved_gates)
+
+            envelope = store.approve(envelope.run.run_id, "benchmark_plan")
+            self.assertEqual(envelope.current_step_index, 3)
+
+            envelope = store.approve(envelope.run.run_id, "model_budget")
+            self.assertEqual(envelope.current_step_index, 6)
+
+            reloaded = store.get(envelope.run.run_id)
+            self.assertEqual(reloaded.current_step_index, 6)
+            self.assertIn("model_budget", reloaded.approved_gates)
 
 
 if __name__ == "__main__":

@@ -99,6 +99,44 @@ http://localhost:8765
 
 The static demo can later be deployed unchanged to Vercel, GitHub Pages, or a Hugging Face Space.
 
+## Local Agentic Server
+
+For persisted runs and approval state, use the Lab server:
+
+```bash
+PYTHONPATH=src python3 -m data_forge.cli lab serve
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8765
+```
+
+The server exposes a small local API:
+
+```text
+GET  /api/health
+GET  /api/runs
+POST /api/runs
+GET  /api/runs/{run_id}
+POST /api/runs/{run_id}/approve
+POST /api/runs/{run_id}/advance
+```
+
+Runs are saved under:
+
+```text
+generation/lab/runs/{run_id}/run.json
+```
+
+CLI equivalents:
+
+```bash
+PYTHONPATH=src python3 -m data_forge.cli lab plan "fine tune a small model for tool calling"
+PYTHONPATH=src python3 -m data_forge.cli lab approve <run_id> task_interpretation
+```
+
 ## Live Harness Roadmap
 
 1. Persist lab run state as JSON manifests.

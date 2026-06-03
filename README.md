@@ -89,11 +89,20 @@ Then visit `http://localhost:8765`.
 
 The Lab demo shows the intended end product: a clean visual agent console where the user writes a prompt, approves major decisions, watches the closed loop, and receives benchmarked model artifacts.
 
+Run the local Lab server with persisted run state and approval APIs:
+
+```bash
+PYTHONPATH=src python3 -m data_forge.cli lab serve
+```
+
+Then visit `http://127.0.0.1:8765`.
+
 CLI inspection:
 
 ```bash
 python3 -m data_forge.cli lab inspect
 python3 -m data_forge.cli lab demo
+python3 -m data_forge.cli lab plan "fine tune a small model for tool calling"
 ```
 
 ## Core Workflow
