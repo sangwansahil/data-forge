@@ -70,11 +70,36 @@ class LabRunCardTests(unittest.TestCase):
             self.assertEqual(envelope.current_step_index, 3)
 
             envelope = store.approve(envelope.run.run_id, "model_budget")
-            self.assertEqual(envelope.current_step_index, 6)
+            self.assertEqual(envelope.current_step_index, 4)
 
             reloaded = store.get(envelope.run.run_id)
-            self.assertEqual(reloaded.current_step_index, 6)
+            self.assertEqual(reloaded.current_step_index, 4)
             self.assertIn("model_budget", reloaded.approved_gates)
+
+    def test_lab_run_store_runs_tool_calling_baseline_and_forge_steps(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture_dir = root / "niches/tool-calling/examples"
+            fixture_dir.mkdir(parents=True)
+            fixture = ROOT / "niches/tool-calling/examples/eval_cases.jsonl"
+            (fixture_dir / "eval_cases.jsonl").write_text(fixture.read_text())
+
+            store = LabRunStore(root / "runs")
+            envelope = store.create("fine tune a small model for tool calling", project_root=root)
+            run_id = envelope.run.run_id
+            for gate_id in ["task_interpretation", "benchmark_plan", "model_budget"]:
+                envelope = store.approve(run_id, gate_id)
+
+            self.assertEqual(envelope.run.steps[envelope.current_step_index - 1].step_id, "baseline")
+            envelope = store.run_next(run_id, project_root=root)
+            self.assertEqual(envelope.run.steps[3].status, "complete")
+            self.assertEqual(envelope.current_step_index, 5)
+            self.assertTrue((root / "runs" / run_id / "artifacts/tool_calling/baseline_report.json").exists())
+
+            envelope = store.run_next(run_id, project_root=root)
+            self.assertEqual(envelope.run.steps[4].status, "complete")
+            self.assertEqual(envelope.current_step_index, 6)
+            self.assertTrue((root / "runs" / run_id / "artifacts/tool_calling/seed_rows.jsonl").exists())
 
 
 if __name__ == "__main__":

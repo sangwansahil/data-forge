@@ -9,6 +9,7 @@ from data_forge.lab.run_card import (
     ModelCandidate,
 )
 from data_forge.lab.state import LabRunEnvelope, LabRunStore
+from data_forge.lab.store_factory import build_lab_store
 
 __all__ = [
     "ApprovalGate",
@@ -19,4 +20,5 @@ __all__ = [
     "ModelCandidate",
     "LabRunEnvelope",
     "LabRunStore",
+    "build_lab_store",
 ]

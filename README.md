@@ -14,7 +14,7 @@ This repository is designed to be cloned and adapted for new niches. A niche can
 - Static HTML review packets for human approval without running a server.
 - Signoff enforcement before fine-tuning exports.
 - Testable quality gates instead of trust-based synthetic data.
-- Data Forge Lab: an agentic visual harness for small-model fine-tuning experiments.
+- Data Forge Lab: an agentic visual harness for small-model fine-tuning experiments, with local or Supabase-backed run state.
 
 ## Repository Layout
 
@@ -103,7 +103,18 @@ CLI inspection:
 python3 -m data_forge.cli lab inspect
 python3 -m data_forge.cli lab demo
 python3 -m data_forge.cli lab plan "fine tune a small model for tool calling"
+python3 -m data_forge.cli lab run-next <run_id>
 ```
+
+For a hosted/user-facing Lab deployment, use Supabase for run state:
+
+```bash
+export DATA_FORGE_LAB_STORE=supabase
+export SUPABASE_URL=https://<project-ref>.supabase.co
+export SUPABASE_SERVICE_ROLE_KEY=<server-only-service-role-key>
+```
+
+Apply `supabase/migrations/20260603000000_data_forge_lab.sql` first. See `docs/supabase_lab_storage.md`.
 
 ## Core Workflow
 

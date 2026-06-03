@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -46,6 +46,24 @@ class LabRunEnvelope:
             created_at=str(state.get("created_at", utc_now())),
             updated_at=str(state.get("updated_at", utc_now())),
         )
+
+
+def advance_envelope(envelope: LabRunEnvelope) -> None:
+    steps = envelope.run.steps
+    if not steps:
+        envelope.current_step_index = 0
+        return
+    if envelope.current_step_index < 1:
+        envelope.current_step_index = 1
+    while envelope.current_step_index <= len(steps):
+        current = steps[envelope.current_step_index - 1]
+        if current.approval and current.approval.gate_id not in envelope.approved_gates:
+            break
+        if current.status not in {"complete", "needs_approval"}:
+            break
+        if envelope.current_step_index == len(steps):
+            break
+        envelope.current_step_index += 1
 
 
 class LabRunStore:
@@ -94,28 +112,29 @@ class LabRunStore:
             raise ValueError(f"unknown approval gate: {gate_id}")
         envelope.approved_gates[gate_id] = choice
         envelope.events.append({"type": "approved", "at": utc_now(), "gate_id": gate_id, "choice": choice})
-        self._advance(envelope)
+        advance_envelope(envelope)
         self.save(envelope)
         return envelope
 
     def advance(self, run_id: str) -> LabRunEnvelope:
         envelope = self.get(run_id)
-        self._advance(envelope)
+        advance_envelope(envelope)
         envelope.events.append({"type": "advanced", "at": utc_now(), "step_index": envelope.current_step_index})
         self.save(envelope)
         return envelope
 
-    def _advance(self, envelope: LabRunEnvelope) -> None:
-        steps = envelope.run.steps
-        if not steps:
-            envelope.current_step_index = 0
-            return
-        if envelope.current_step_index < 1:
-            envelope.current_step_index = 1
-        while envelope.current_step_index <= len(steps):
-            current = steps[envelope.current_step_index - 1]
-            if current.approval and current.approval.gate_id not in envelope.approved_gates:
-                break
-            if envelope.current_step_index == len(steps):
-                break
-            envelope.current_step_index += 1
+    def run_next(self, run_id: str, *, project_root: Path) -> LabRunEnvelope:
+        from data_forge.lab.executor import run_current_step
+
+        envelope = self.get(run_id)
+        envelope.run = replace(envelope.run, status="running")
+        envelope.events.append({"type": "step_started", "at": utc_now(), "step_index": envelope.current_step_index})
+        envelope = run_current_step(
+            project_root=project_root,
+            run_dir=self.run_dir(run_id) / "artifacts",
+            envelope=envelope,
+        )
+        advance_envelope(envelope)
+        envelope.events.append({"type": "runner_advanced", "at": utc_now(), "step_index": envelope.current_step_index})
+        self.save(envelope)
+        return envelope

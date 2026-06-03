@@ -6,7 +6,7 @@ from pathlib import Path
 
 from data_forge import __version__
 from data_forge.lab.server import serve
-from data_forge.lab.state import LabRunStore
+from data_forge.lab.store_factory import build_lab_store
 from data_forge.lab.text_to_sql_demo import build_text_to_sql_demo_card
 
 
@@ -34,11 +34,8 @@ def _lab_inspect(args: argparse.Namespace) -> int:
     return 0
 
 
-def _store(root: Path, store_path: str) -> LabRunStore:
-    path = Path(store_path)
-    if not path.is_absolute():
-        path = root / path
-    return LabRunStore(path)
+def _store(root: Path, store_path: str):
+    return build_lab_store(root=root, store_path=store_path)
 
 
 def _lab_plan(args: argparse.Namespace) -> int:
@@ -51,6 +48,13 @@ def _lab_plan(args: argparse.Namespace) -> int:
 def _lab_approve(args: argparse.Namespace) -> int:
     root = Path(args.root).resolve()
     envelope = _store(root, args.store).approve(args.run_id, args.gate_id, args.choice)
+    print(json.dumps(envelope.to_dict(), indent=2, sort_keys=True))
+    return 0
+
+
+def _lab_run_next(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    envelope = _store(root, args.store).run_next(args.run_id, project_root=root)
     print(json.dumps(envelope.to_dict(), indent=2, sort_keys=True))
     return 0
 
@@ -95,6 +99,12 @@ def main() -> int:
     approve_parser.add_argument("--root", default=".")
     approve_parser.add_argument("--store", default="generation/lab/runs")
     approve_parser.set_defaults(func=_lab_approve)
+
+    run_next_parser = lab_subparsers.add_parser("run-next", help="Run the current executable Lab step.")
+    run_next_parser.add_argument("run_id")
+    run_next_parser.add_argument("--root", default=".")
+    run_next_parser.add_argument("--store", default="generation/lab/runs")
+    run_next_parser.set_defaults(func=_lab_run_next)
 
     serve_parser = lab_subparsers.add_parser("serve", help="Run the local Data Forge Lab UI and API.")
     serve_parser.add_argument("--host", default="127.0.0.1")

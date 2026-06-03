@@ -7,12 +7,12 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
-from data_forge.lab.state import LabRunStore
+from data_forge.lab.store_factory import build_lab_store
 
 
 class LabRequestHandler(SimpleHTTPRequestHandler):
     project_root: Path
-    store: LabRunStore
+    store: object
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, directory=str(self.project_root / "apps/lab-ui"), **kwargs)
@@ -73,6 +73,10 @@ class LabRequestHandler(SimpleHTTPRequestHandler):
                 run_id = unquote(path.removeprefix("/api/runs/").removesuffix("/advance")).strip("/")
                 self._json_response(self.store.advance(run_id).to_dict())
                 return
+            if path.startswith("/api/runs/") and path.endswith("/run-next"):
+                run_id = unquote(path.removeprefix("/api/runs/").removesuffix("/run-next")).strip("/")
+                self._json_response(self.store.run_next(run_id, project_root=self.project_root).to_dict())
+                return
         except KeyError as exc:
             self._json_response({"error": "run not found", "run_id": str(exc)}, HTTPStatus.NOT_FOUND)
             return
@@ -87,7 +91,7 @@ class LabRequestHandler(SimpleHTTPRequestHandler):
 
 def serve(*, project_root: Path, host: str, port: int, store_dir: Path) -> None:
     LabRequestHandler.project_root = project_root
-    LabRequestHandler.store = LabRunStore(store_dir)
+    LabRequestHandler.store = build_lab_store(root=project_root, store_path=str(store_dir))
     server = ThreadingHTTPServer((host, port), LabRequestHandler)
     print(f"Data Forge Lab listening on http://{host}:{port}")
     server.serve_forever()

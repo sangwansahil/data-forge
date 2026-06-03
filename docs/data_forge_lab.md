@@ -122,6 +122,7 @@ POST /api/runs
 GET  /api/runs/{run_id}
 POST /api/runs/{run_id}/approve
 POST /api/runs/{run_id}/advance
+POST /api/runs/{run_id}/run-next
 ```
 
 Runs are saved under:
@@ -135,7 +136,10 @@ CLI equivalents:
 ```bash
 PYTHONPATH=src python3 -m data_forge.cli lab plan "fine tune a small model for tool calling"
 PYTHONPATH=src python3 -m data_forge.cli lab approve <run_id> task_interpretation
+PYTHONPATH=src python3 -m data_forge.cli lab run-next <run_id>
 ```
+
+Set `DATA_FORGE_LAB_STORE=supabase` for hosted run state. The browser still talks to the Lab API; the server writes run snapshots, events, and artifact metadata to Supabase using server-only credentials. See `docs/supabase_lab_storage.md`.
 
 ## Live Harness Roadmap
 

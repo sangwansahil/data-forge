@@ -285,10 +285,21 @@ input:focus {
 }
 
 .timeline-head {
+  align-items: flex-start;
   display: flex;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.timeline-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.timeline-actions button {
+  white-space: nowrap;
 }
 
 .step {
@@ -336,6 +347,12 @@ input:focus {
 .state.running {
   border-color: rgba(141, 182, 255, 0.5);
   color: var(--blue);
+}
+
+.state.failed,
+.state.blocked {
+  border-color: rgba(239, 111, 95, 0.5);
+  color: var(--red);
 }
 
 .detail-list {
@@ -421,6 +438,7 @@ input:focus {
 
   .topbar,
   .timeline-head,
+  .timeline-actions,
   .step-head {
     flex-direction: column;
   }

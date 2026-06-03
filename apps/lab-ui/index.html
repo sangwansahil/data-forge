@@ -51,8 +51,11 @@
               <p class="panel-label">closed loop</p>
               <h2>Plan → baseline → data → train → eval → diagnose → promote</h2>
             </div>
-            <div class="loop-meter">
-              <span id="loopCount">0/0</span>
+            <div class="timeline-actions">
+              <button class="secondary" id="runNextButton" disabled>Run next step</button>
+              <div class="loop-meter">
+                <span id="loopCount">0/0</span>
+              </div>
             </div>
           </div>
           <div id="steps"></div>

@@ -47,6 +47,7 @@ const state = {
   running: false,
   live: false,
   currentRunId: null,
+  busy: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -145,6 +146,41 @@ function renderApproval(step) {
   `;
 }
 
+function activeStep() {
+  const steps = state.run.steps || [];
+  return steps[Math.max(0, state.visibleSteps - 1)] || null;
+}
+
+function renderRunNextButton() {
+  const button = $("runNextButton");
+  if (!button) return;
+  const step = activeStep();
+  const needsApproval = step?.approval && !state.approved.has(step.approval.gate_id);
+  const runnable = Boolean(
+    state.live &&
+      state.currentRunId &&
+      step &&
+      !needsApproval &&
+      ["waiting", "failed"].includes(step.status),
+  );
+  button.disabled = state.busy || !runnable;
+  if (state.busy) {
+    button.textContent = "Running...";
+  } else if (!state.live) {
+    button.textContent = "Live server needed";
+  } else if (!step) {
+    button.textContent = "No step";
+  } else if (needsApproval) {
+    button.textContent = "Approval needed";
+  } else if (step.status === "complete") {
+    button.textContent = "Step complete";
+  } else if (step.status === "blocked") {
+    button.textContent = "Step blocked";
+  } else {
+    button.textContent = `Run ${step.title}`;
+  }
+}
+
 function renderSteps() {
   const steps = state.run.steps || [];
   $("loopCount").textContent = `${Math.min(state.visibleSteps, steps.length)}/${steps.length}`;
@@ -209,6 +245,7 @@ function render() {
   renderModels(state.run.model_candidates || []);
   renderArtifacts(state.run.artifacts || []);
   renderSteps();
+  renderRunNextButton();
   renderNextLoop(state.run.next_loop || []);
 }
 
@@ -219,6 +256,26 @@ function applyEnvelope(envelope) {
   state.approved = new Set(Object.keys(envelope.state?.approved_gates || {}));
   state.running = state.visibleSteps < (state.run.steps || []).length;
   render();
+}
+
+async function runNextStep() {
+  if (!state.live || !state.currentRunId || state.busy) return;
+  state.busy = true;
+  render();
+  try {
+    const envelope = await api(`/api/runs/${encodeURIComponent(state.currentRunId)}/run-next`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    applyEnvelope(envelope);
+  } catch (error) {
+    console.error(error);
+    $("runStatus").textContent = "run failed";
+    window.alert("The current step failed. Check the run artifacts or server logs.");
+  } finally {
+    state.busy = false;
+    render();
+  }
 }
 
 async function api(path, options = {}) {
@@ -304,5 +361,6 @@ async function startRun() {
 }
 
 $("startButton").addEventListener("click", startRun);
+$("runNextButton").addEventListener("click", runNextStep);
 
 loadRun();
